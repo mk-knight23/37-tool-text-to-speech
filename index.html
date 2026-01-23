@@ -1,38 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="batman-6-16.ico" />
-    <title>Text-To-Speech</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <header>
-        <h1>Text to Speech</h1>
-    </header>
-
-    <main>
-        <div>
-            <p class="lead text-light mt-4">Select Voice</p>
-            <!-- Select Menu for Voice -->
-            <select id="voices" class="form-select bg-secondary text-light"></select>
-            <input type="text" id="input-text" placeholder="Enter Text">
-            <button onclick="textToAudio()">Speech</button>
-            <br>
-            <h2>Volume</h2>
-            <input type="range" min="1" max="10" value="5" id="volumeRange">
-            <br>
-            <h2>Rate</h2>
-            <input type="range" min="1" max="10" value="5" id="rateRange">
-            <br>
-            <h2>Pitch</h2>
-            <input type="range" min="1" max="20" value="10" id="pitchRange">
-        </div> 
-    </main>
-
-    <script src="script.js"></script>
-
-</body>
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StudioVoice - High-fidelity Text-to-Speech Web Application. Professional synthesis with real-time neural voice controls.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <title>StudioVoice | High-Fidelity Synthesis</title>
+  </head>
+  <body class="bg-[#020617]">
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>
