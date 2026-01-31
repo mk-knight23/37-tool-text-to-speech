@@ -40,11 +40,14 @@ VoiceFlow converts written text into spoken words using your browser's built-in 
 
 ## Workflow Steps
 
-1. **Enter Text** — Type or paste content into the text area
+1. **Enter Text** — Type, paste, or upload a .txt/.md file
 2. **Select Voice** — Choose from available system voices
 3. **Adjust Settings** — Set speed, pitch, and volume as needed
 4. **Play** — Click Speak button or use keyboard shortcut
 5. **Control** — Pause or stop playback as needed
+
+### File Upload
+Upload text files (.txt, .md) up to 100KB. Content is automatically loaded into the text area (limited to 5000 characters).
 
 ---
 
@@ -108,9 +111,10 @@ npm run build
 
 - **Browser Support**: Requires Speech Synthesis API support (all modern browsers)
 - **Voice Availability**: Depends on installed system voices
-- **No Audio Export**: Cannot save speech as audio file
+- **No Audio Export**: Cannot save speech as audio file (intentionally not solved — browser security prevents this without a backend)
 - **Character Limit**: Some browsers limit text length per utterance
 - **Quality**: Voice quality varies by browser and system
+- **No SSML Support**: Advanced markup for speech control not supported (keeps tool simple for general users)
 
 ---
 
