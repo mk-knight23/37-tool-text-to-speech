@@ -15,7 +15,9 @@ import {
   Volume2,
   Languages,
   Github,
-  Info
+  Info,
+  Upload,
+  X
 } from 'lucide-vue-next'
 
 const store = useTtsStore()
@@ -96,6 +98,35 @@ const recordClick = () => {
 }
 
 const waveformBars = [1, 2, 3, 4, 5, 6, 7, 8]
+
+const handleFileUpload = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  // Only accept text files
+  if (!file.type.startsWith('text/') && !file.name.endsWith('.txt') && !file.name.endsWith('.md')) {
+    alert('Please upload a text file (.txt or .md)')
+    return
+  }
+
+  // Check file size (max 100KB)
+  if (file.size > 100 * 1024) {
+    alert('File size must be less than 100KB')
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const content = e.target?.result as string
+    if (content) {
+      text.value = content.slice(0, 5000) // Limit to 5000 chars
+      audio.playClick()
+    }
+  }
+  reader.readAsText(file)
+  input.value = '' // Reset input
+}
 </script>
 
 <template>
@@ -154,15 +185,42 @@ const waveformBars = [1, 2, 3, 4, 5, 6, 7, 8]
         <div class="lg:col-span-2 space-y-8">
           <!-- Text Input -->
           <div class="voice-card">
-            <label for="text-input" class="block text-sm font-semibold text-voice-secondary mb-3">
-              Enter text to speak
-            </label>
+            <div class="flex items-center justify-between mb-3">
+              <label for="text-input" class="block text-sm font-semibold text-voice-secondary">
+                Enter text to speak
+              </label>
+              <div class="flex items-center gap-2">
+                <input
+                  type="file"
+                  id="file-upload"
+                  accept=".txt,.md,text/*"
+                  @change="handleFileUpload"
+                  class="hidden"
+                />
+                <label
+                  for="file-upload"
+                  class="voice-btn-secondary text-xs px-3 py-1 cursor-pointer flex items-center gap-1"
+                >
+                  <Upload :size="14" />
+                  Upload .txt
+                </label>
+                <button
+                  v-if="text"
+                  @click="text = ''"
+                  class="voice-btn-secondary text-xs px-3 py-1 flex items-center gap-1"
+                  aria-label="Clear text"
+                >
+                  <X :size="14" />
+                  Clear
+                </button>
+              </div>
+            </div>
             <textarea
               id="text-input"
               v-model="text"
               @click="recordClick"
               class="voice-textarea w-full"
-              placeholder="Type or paste your content here..."
+              placeholder="Type, paste, or upload your content here..."
               aria-describedby="char-count"
             ></textarea>
             <div id="char-count" class="mt-3 text-sm text-voice-muted">
