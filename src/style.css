@@ -246,6 +246,28 @@
     50% { height: 40px; }
   }
 
+  /* Mini waveform for status */
+  .voice-waveform-mini {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 20px;
+  }
+
+  .voice-waveform-bar-mini {
+    width: 4px;
+    height: 8px;
+    background: var(--voice-primary);
+    border-radius: 2px;
+    animation: voicePulseMini 0.8s ease-in-out infinite;
+  }
+
+  @keyframes voicePulseMini {
+    0%, 100% { height: 8px; }
+    50% { height: 16px; }
+  }
+
   /* Scrollbar - wide for accessibility */
   .voice-scrollbar::-webkit-scrollbar {
     width: 12px;

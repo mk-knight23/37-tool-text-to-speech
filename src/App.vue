@@ -275,9 +275,19 @@ const handleFileUpload = (event: Event) => {
             v-if="isSpeaking"
             role="status"
             aria-live="polite"
-            class="text-center text-sm text-voice-secondary py-4"
+            class="voice-card bg-voice-primary/10 border-voice-primary"
           >
-            Currently speaking...
+            <div class="flex items-center justify-center gap-3 py-3">
+              <div class="voice-waveform-mini">
+                <div
+                  v-for="i in 3"
+                  :key="i"
+                  class="voice-waveform-bar-mini"
+                  :style="{ animationDelay: `${i * 0.15}s` }"
+                ></div>
+              </div>
+              <span class="text-sm font-medium text-voice-primary">Speaking...</span>
+            </div>
           </div>
         </div>
 
@@ -424,9 +434,11 @@ const handleFileUpload = (event: Event) => {
 
             <div
               v-else
-              class="text-center py-8 text-voice-muted"
+              class="text-center py-8 border-2 border-dashed border-voice-border rounded-lg"
             >
-              <p class="text-sm">No speech history yet</p>
+              <HistoryIcon :size="32" :stroke-width="1.5" class="mx-auto mb-2 text-voice-muted opacity-50" />
+              <p class="text-sm text-voice-muted">No speech history yet</p>
+              <p class="text-xs text-voice-muted mt-1">Your recent speeches will appear here</p>
             </div>
           </div>
         </div>
