@@ -26,8 +26,10 @@ const audio = useAudio()
 
 const text = ref('Hello, welcome to VoiceFlow. Enter your text here to begin speech synthesis.')
 const isSpeaking = ref(false)
+const isPaused = ref(false)
 const voices = ref<SpeechSynthesisVoice[]>([])
 const selectedVoice = ref<SpeechSynthesisVoice | null>(null)
+let currentUtterance: SpeechSynthesisUtterance | null = null
 
 const synth = window.speechSynthesis
 
@@ -51,11 +53,21 @@ onMounted(() => {
 
 const speak = () => {
   audio.playClick()
-  if (isSpeaking.value) {
-    synth.cancel()
-    isSpeaking.value = false
+
+  // Handle pause/resume
+  if (isPaused.value) {
+    synth.resume()
+    isPaused.value = false
     return
   }
+
+  // If speaking, pause instead of cancel
+  if (isSpeaking.value) {
+    synth.pause()
+    isPaused.value = true
+    return
+  }
+
   if (!text.value) return
 
   const utterance = new SpeechSynthesisUtterance(text.value)
@@ -66,17 +78,23 @@ const speak = () => {
 
   utterance.onstart = () => {
     isSpeaking.value = true
+    isPaused.value = false
   }
   utterance.onend = () => {
     isSpeaking.value = false
+    isPaused.value = false
+    currentUtterance = null
     statsStore.recordSpeechGeneration(text.value.length)
     audio.playSuccess()
   }
   utterance.onerror = () => {
     isSpeaking.value = false
+    isPaused.value = false
+    currentUtterance = null
     audio.playError()
   }
 
+  currentUtterance = utterance
   synth.speak(utterance)
   store.addToHistory(text.value, selectedVoice.value?.name || 'Default')
 }
@@ -85,6 +103,8 @@ const stop = () => {
   audio.playClick()
   synth.cancel()
   isSpeaking.value = false
+  isPaused.value = false
+  currentUtterance = null
 }
 
 const openSettings = () => {
@@ -235,11 +255,11 @@ const handleFileUpload = (event: Event) => {
                 @click="speak"
                 @click.capture="recordClick"
                 class="voice-btn-primary flex-shrink-0"
-                :aria-label="isSpeaking ? 'Pause speech' : 'Start speech'"
+                :aria-label="isPaused ? 'Resume speech' : isSpeaking ? 'Pause speech' : 'Start speech'"
               >
-                <Pause v-if="isSpeaking" :size="24" fill="currentColor" />
-                <Play v-else :size="24" fill="currentColor" />
-                <span>{{ isSpeaking ? 'Pause' : 'Speak' }}</span>
+                <Play v-if="!isSpeaking || isPaused" :size="24" fill="currentColor" />
+                <Pause v-else :size="24" fill="currentColor" />
+                <span>{{ isPaused ? 'Resume' : isSpeaking ? 'Pause' : 'Speak' }}</span>
               </button>
 
               <!-- Waveform Visualization -->
@@ -274,18 +294,21 @@ const handleFileUpload = (event: Event) => {
             v-if="isSpeaking"
             role="status"
             aria-live="polite"
-            class="voice-card bg-voice-primary/10 border-voice-primary"
+            class="voice-card"
+            :class="isPaused ? 'bg-voice-muted/20 border-voice-muted' : 'bg-voice-primary/10 border-voice-primary'"
           >
             <div class="flex items-center justify-center gap-3 py-3">
-              <div class="voice-waveform-mini">
+              <div class="voice-waveform-mini" :class="{ 'opacity-50': isPaused }">
                 <div
                   v-for="i in 3"
                   :key="i"
                   class="voice-waveform-bar-mini"
-                  :style="{ animationDelay: `${i * 0.15}s` }"
+                  :style="{ animationDelay: `${i * 0.15}s`, animationPlayState: isPaused ? 'paused' : 'running' }"
                 ></div>
               </div>
-              <span class="text-sm font-medium text-voice-primary">Speaking...</span>
+              <span class="text-sm font-medium" :class="isPaused ? 'text-voice-muted' : 'text-voice-primary'">
+                {{ isPaused ? 'Paused' : 'Speaking...' }}
+              </span>
             </div>
           </div>
         </div>
