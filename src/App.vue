@@ -29,6 +29,7 @@ const isSpeaking = ref(false)
 const isPaused = ref(false)
 const voices = ref<SpeechSynthesisVoice[]>([])
 const selectedVoice = ref<SpeechSynthesisVoice | null>(null)
+const showShortcuts = ref(false)
 let currentUtterance: SpeechSynthesisUtterance | null = null
 
 const synth = window.speechSynthesis
@@ -49,6 +50,31 @@ onMounted(() => {
   if (synth.onvoiceschanged !== undefined) {
     synth.onvoiceschanged = loadVoices
   }
+
+  // Keyboard event handlers
+  const handleKeydown = (e: KeyboardEvent) => {
+    // Alt/Cmd + K for shortcuts
+    if ((e.altKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault()
+      toggleShortcuts()
+    }
+    // Escape to stop speech or close shortcuts
+    if (e.key === 'Escape') {
+      if (showShortcuts.value) {
+        showShortcuts.value = false
+      } else if (isSpeaking.value) {
+        stop()
+      }
+    }
+    // Space to toggle speech (when not typing)
+    if (e.code === 'Space' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
+      e.preventDefault()
+      speak()
+    }
+  }
+
+  window.addEventListener('keydown', handleKeydown)
+  return () => window.removeEventListener('keydown', handleKeydown)
 })
 
 const speak = () => {
@@ -112,9 +138,21 @@ const openSettings = () => {
   statsStore.recordSettingsOpen()
 }
 
+const toggleShortcuts = () => {
+  showShortcuts.value = !showShortcuts.value
+  audio.playClick()
+}
+
 const recordClick = () => {
   statsStore.recordClick()
 }
+
+const keyboardShortcuts = [
+  { key: 'Space', action: 'Play/Pause speech', condition: 'When not typing' },
+  { key: 'Escape', action: 'Stop speech', condition: 'Always' },
+  { key: 'Alt + K', action: 'Show/hide shortcuts', condition: 'Always' },
+  { key: 'Tab', action: 'Navigate between controls', condition: 'Always' },
+]
 
 const waveformBars = [1, 2, 3, 4, 5, 6, 7, 8]
 
@@ -175,6 +213,14 @@ const handleFileUpload = (event: Event) => {
           </div>
         </div>
         <div class="flex items-center gap-4">
+          <button
+            @click="toggleShortcuts"
+            class="voice-btn-secondary text-xs px-3 py-2 hidden sm:block"
+            aria-label="Show keyboard shortcuts"
+            :aria-expanded="showShortcuts"
+          >
+            ⌨️ Shortcuts
+          </button>
           <button
             @click="openSettings"
             class="voice-btn-secondary p-3"
@@ -484,6 +530,56 @@ const handleFileUpload = (event: Event) => {
         </div>
       </div>
     </main>
+
+    <!-- Keyboard Shortcuts Panel -->
+    <Teleport to="body">
+      <div
+        v-if="showShortcuts"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        @click="showShortcuts = false"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-title"
+      >
+        <div
+          class="voice-card max-w-md w-full p-6"
+          @click.stop
+        >
+          <div class="flex items-center justify-between mb-6">
+            <h2 id="shortcuts-title" class="text-xl font-bold text-voice-text">Keyboard Shortcuts</h2>
+            <button
+              @click="showShortcuts = false"
+              class="voice-btn-secondary p-2"
+              aria-label="Close shortcuts panel"
+            >
+              <X :size="20" />
+            </button>
+          </div>
+
+          <div class="space-y-3">
+            <div
+              v-for="(shortcut, index) in keyboardShortcuts"
+              :key="index"
+              class="flex items-center justify-between p-3 bg-voice-bg rounded-lg border border-voice-border"
+            >
+              <div class="flex items-center gap-3">
+                <kbd class="px-2 py-1 text-sm bg-voice-surface border border-voice-border rounded font-mono">
+                  {{ shortcut.key }}
+                </kbd>
+                <span class="text-sm text-voice-text">{{ shortcut.action }}</span>
+              </div>
+              <span class="text-xs text-voice-muted">{{ shortcut.condition }}</span>
+            </div>
+          </div>
+
+          <div class="mt-6 pt-4 border-t border-voice-border">
+            <p class="text-xs text-voice-muted text-center">
+              Press <kbd class="px-1.5 py-0.5 bg-voice-surface border border-voice-border rounded font-mono text-xs">Escape</kbd> or click outside to close
+            </p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Footer -->
     <footer class="border-t border-voice-border mt-12">
