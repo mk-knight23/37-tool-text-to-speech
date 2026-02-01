@@ -4,7 +4,6 @@ import { useTtsStore } from './stores/ttsStore'
 import { useSettingsStore } from './stores/settings'
 import { useStatsStore } from './stores/stats'
 import { useAudio } from './composables/useAudio'
-// import SettingsPanel from './components/ui/SettingsPanel.vue'
 import {
   Play,
   Pause,
@@ -155,7 +154,7 @@ const handleFileUpload = (event: Event) => {
             <Info :size="20" />
           </button>
           <a
-            href="https://github.com/mk-knight23/50-Text-To-Speech-Web-App"
+            href="https://github.com/mk-knight23/37-tool-text-to-speech"
             target="_blank"
             rel="noopener noreferrer"
             class="voice-btn-secondary p-3"
@@ -449,14 +448,12 @@ const handleFileUpload = (event: Event) => {
     <footer class="border-t border-voice-border mt-12">
       <div class="max-w-4xl mx-auto px-6 py-8 text-center">
         <p class="text-sm text-voice-muted">
-          VoiceFlow — Accessible Text to Speech
+          Made by MK — Musharraf Kazi
         </p>
         <p class="text-xs text-voice-muted mt-2">
           Works entirely in your browser. No data is sent to any server.
         </p>
       </div>
     </footer>
-
-    <!-- <SettingsPanel /> -->
   </div>
 </template>
