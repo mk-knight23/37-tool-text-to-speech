@@ -101,13 +101,42 @@ npm run build
 
 | Key | Action |
 |-----|--------|
+| Space | Play/Pause speech (when not typing) |
+| Escape | Stop speech or close shortcuts panel |
+| Alt/Cmd + K | Show/hide keyboard shortcuts |
 | Tab | Navigate between controls |
-| Space/Enter | Activate focused button |
-| Escape | Stop speech |
 
 ---
 
-## Limitations
+## Recent Upgrades (v2.1.0)
+
+### Iteration 1: Audit & Cleanup
+- Fixed GitHub repository link (was pointing to repo 50 instead of 37)
+- Removed commented-out SettingsPanel component
+- Added "Made by MK — Musharraf Kazi" branding to footer
+- Cleaned up dead code
+
+### Iteration 2: Core Logic Upgrade
+- Implemented true pause/resume functionality
+- Button now cycles: Speak → Pause → Resume
+- Speech maintains position when paused (doesn't restart)
+- Visual status indicator shows paused vs speaking state
+- Waveform animation respects pause state
+
+### Iteration 3: UX / Feel / Humanization
+- Added usage tips panel with practical guidance
+- 4 tips for better speech: punctuation, acronyms, numbers, questions
+- Randomly selected tip shown on page load
+- Helps users get more natural-sounding speech results
+
+### Iteration 4: Accessibility & Polish
+- Added keyboard shortcuts modal panel
+- Implemented global keyboard handlers for all major functions
+- Shortcuts button in header (desktop only)
+- Proper ARIA dialog attributes for accessibility
+- Makes keyboard controls discoverable
+
+---
 
 - **Browser Support**: Requires Speech Synthesis API support (all modern browsers)
 - **Voice Availability**: Depends on installed system voices
