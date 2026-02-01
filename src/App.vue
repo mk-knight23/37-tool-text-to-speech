@@ -118,6 +118,15 @@ const recordClick = () => {
 
 const waveformBars = [1, 2, 3, 4, 5, 6, 7, 8]
 
+// Usage tips for better speech results
+const speechTips = [
+  { tip: "Use commas and periods for natural pauses", icon: "⏸" },
+  { tip: "Spell out acronyms letter by letter (e.g., 'U-S-A')", icon: "🔤" },
+  { tip: "Write numbers as words for better pronunciation", icon: "123" },
+  { tip: "Use question marks to raise pitch at the end", icon: "❓" },
+]
+const currentTip = ref(speechTips[Math.floor(Math.random() * speechTips.length)] ?? speechTips[0])
+
 const handleFileUpload = (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -204,6 +213,15 @@ const handleFileUpload = (event: Event) => {
         <div class="lg:col-span-2 space-y-8">
           <!-- Text Input -->
           <div class="voice-card">
+            <!-- Usage Tip -->
+            <div class="mb-4 p-3 bg-voice-primary/5 border border-voice-primary/20 rounded-lg flex items-start gap-3">
+              <span class="text-xl" aria-hidden="true">{{ currentTip?.icon }}</span>
+              <div>
+                <p class="text-sm text-voice-text font-medium">Tip for better speech:</p>
+                <p class="text-sm text-voice-secondary mt-1">{{ currentTip?.tip }}</p>
+              </div>
+            </div>
+
             <div class="flex items-center justify-between mb-3">
               <label for="text-input" class="block text-sm font-semibold text-voice-secondary">
                 Enter text to speak
