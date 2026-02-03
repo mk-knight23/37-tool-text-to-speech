@@ -1,596 +1,104 @@
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useTtsStore } from './stores/ttsStore'
-import { useSettingsStore } from './stores/settings'
-import { useStatsStore } from './stores/stats'
-import { useAudio } from './composables/useAudio'
-import {
-  Play,
-  Pause,
-  Square,
-  RotateCcw,
-  History as HistoryIcon,
-  Settings2,
-  Volume2,
-  Languages,
-  Github,
-  Info,
-  Upload,
-  X
-} from 'lucide-vue-next'
-
-const store = useTtsStore()
-const settingsStore = useSettingsStore()
-const statsStore = useStatsStore()
-const audio = useAudio()
-
-const text = ref('Hello, welcome to VoiceFlow. Enter your text here to begin speech synthesis.')
-const isSpeaking = ref(false)
-const isPaused = ref(false)
-const voices = ref<SpeechSynthesisVoice[]>([])
-const selectedVoice = ref<SpeechSynthesisVoice | null>(null)
-const showShortcuts = ref(false)
-let currentUtterance: SpeechSynthesisUtterance | null = null
-
-const synth = window.speechSynthesis
-
-const loadVoices = () => {
-  const allVoices = synth.getVoices().sort((a, b) => a.lang.localeCompare(b.lang))
-  voices.value = allVoices
-  if (allVoices.length && !selectedVoice.value) {
-    selectedVoice.value = allVoices.find(v => v.lang.includes('en')) || allVoices[0] || null
-  }
-}
-
-onMounted(() => {
-  settingsStore.loadSettings()
-  statsStore.loadStats()
-  statsStore.recordVisit()
-  loadVoices()
-  if (synth.onvoiceschanged !== undefined) {
-    synth.onvoiceschanged = loadVoices
-  }
-
-  // Keyboard event handlers
-  const handleKeydown = (e: KeyboardEvent) => {
-    // Alt/Cmd + K for shortcuts
-    if ((e.altKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault()
-      toggleShortcuts()
-    }
-    // Escape to stop speech or close shortcuts
-    if (e.key === 'Escape') {
-      if (showShortcuts.value) {
-        showShortcuts.value = false
-      } else if (isSpeaking.value) {
-        stop()
-      }
-    }
-    // Space to toggle speech (when not typing)
-    if (e.code === 'Space' && document.activeElement?.tagName !== 'TEXTAREA' && document.activeElement?.tagName !== 'INPUT') {
-      e.preventDefault()
-      speak()
-    }
-  }
-
-  window.addEventListener('keydown', handleKeydown)
-  return () => window.removeEventListener('keydown', handleKeydown)
-})
-
-const speak = () => {
-  audio.playClick()
-
-  // Handle pause/resume
-  if (isPaused.value) {
-    synth.resume()
-    isPaused.value = false
-    return
-  }
-
-  // If speaking, pause instead of cancel
-  if (isSpeaking.value) {
-    synth.pause()
-    isPaused.value = true
-    return
-  }
-
-  if (!text.value) return
-
-  const utterance = new SpeechSynthesisUtterance(text.value)
-  if (selectedVoice.value) utterance.voice = selectedVoice.value
-  utterance.pitch = store.settings.pitch
-  utterance.rate = store.settings.rate
-  utterance.volume = store.settings.volume
-
-  utterance.onstart = () => {
-    isSpeaking.value = true
-    isPaused.value = false
-  }
-  utterance.onend = () => {
-    isSpeaking.value = false
-    isPaused.value = false
-    currentUtterance = null
-    statsStore.recordSpeechGeneration(text.value.length)
-    audio.playSuccess()
-  }
-  utterance.onerror = () => {
-    isSpeaking.value = false
-    isPaused.value = false
-    currentUtterance = null
-    audio.playError()
-  }
-
-  currentUtterance = utterance
-  synth.speak(utterance)
-  store.addToHistory(text.value, selectedVoice.value?.name || 'Default')
-}
-
-const stop = () => {
-  audio.playClick()
-  synth.cancel()
-  isSpeaking.value = false
-  isPaused.value = false
-  currentUtterance = null
-}
-
-const openSettings = () => {
-  audio.playClick()
-  statsStore.recordSettingsOpen()
-}
-
-const toggleShortcuts = () => {
-  showShortcuts.value = !showShortcuts.value
-  audio.playClick()
-}
-
-const recordClick = () => {
-  statsStore.recordClick()
-}
-
-const keyboardShortcuts = [
-  { key: 'Space', action: 'Play/Pause speech', condition: 'When not typing' },
-  { key: 'Escape', action: 'Stop speech', condition: 'Always' },
-  { key: 'Alt + K', action: 'Show/hide shortcuts', condition: 'Always' },
-  { key: 'Tab', action: 'Navigate between controls', condition: 'Always' },
-]
-
-const waveformBars = [1, 2, 3, 4, 5, 6, 7, 8]
-
-// Usage tips for better speech results
-const speechTips = [
-  { tip: "Use commas and periods for natural pauses", icon: "⏸" },
-  { tip: "Spell out acronyms letter by letter (e.g., 'U-S-A')", icon: "🔤" },
-  { tip: "Write numbers as words for better pronunciation", icon: "123" },
-  { tip: "Use question marks to raise pitch at the end", icon: "❓" },
-]
-const currentTip = ref(speechTips[Math.floor(Math.random() * speechTips.length)] ?? speechTips[0])
-
-const handleFileUpload = (event: Event) => {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-
-  // Only accept text files
-  if (!file.type.startsWith('text/') && !file.name.endsWith('.txt') && !file.name.endsWith('.md')) {
-    alert('Please upload a text file (.txt or .md)')
-    return
-  }
-
-  // Check file size (max 100KB)
-  if (file.size > 100 * 1024) {
-    alert('File size must be less than 100KB')
-    return
-  }
-
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const content = e.target?.result as string
-    if (content) {
-      text.value = content.slice(0, 5000) // Limit to 5000 chars
-      audio.playClick()
-    }
-  }
-  reader.readAsText(file)
-  input.value = '' // Reset input
-}
-</script>
-
 <template>
-  <div class="min-h-screen" :class="{ 'dark': settingsStore.isDarkMode, 'light': !settingsStore.isDarkMode }">
-    <!-- Skip to main content link for accessibility -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <!-- Header Navigation -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+      <nav class="max-w-6xl mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <router-link to="/" class="flex items-center gap-3">
+              <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                <Volume2 :size="20" />
+              </div>
+              <div>
+                <h1 class="text-xl font-bold text-gray-900 dark:text-white">VoiceFlow</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Text to Speech</p>
+              </div>
+            </router-link>
+          </div>
 
-    <!-- Header -->
-    <header class="border-b border-voice-border">
-      <nav class="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-voice-primary rounded-xl flex items-center justify-center text-white">
-            <Volume2 :size="24" />
+          <div class="flex items-center gap-2">
+            <router-link
+              to="/"
+              class="nav-link"
+              active-class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+            >
+              <Home :size="18" />
+              <span class="hidden sm:inline">Convert</span>
+            </router-link>
+            <router-link
+              to="/history"
+              class="nav-link"
+              active-class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+            >
+              <HistoryIcon :size="18" />
+              <span class="hidden sm:inline">History</span>
+            </router-link>
+            <router-link
+              to="/favorites"
+              class="nav-link"
+              active-class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+            >
+              <Heart :size="18" />
+              <span class="hidden sm:inline">Favorites</span>
+            </router-link>
+            <router-link
+              to="/settings"
+              class="nav-link"
+              active-class="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+            >
+              <Settings :size="18" />
+              <span class="hidden sm:inline">Settings</span>
+            </router-link>
           </div>
-          <div>
-            <h1 class="text-2xl font-bold text-voice-text">VoiceFlow</h1>
-            <p class="text-sm text-voice-muted">Text to Speech</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-4">
-          <button
-            @click="toggleShortcuts"
-            class="voice-btn-secondary text-xs px-3 py-2 hidden sm:block"
-            aria-label="Show keyboard shortcuts"
-            :aria-expanded="showShortcuts"
-          >
-            ⌨️ Shortcuts
-          </button>
-          <button
-            @click="openSettings"
-            class="voice-btn-secondary p-3"
-            aria-label="Open settings"
-          >
-            <Info :size="20" />
-          </button>
-          <a
-            href="https://github.com/mk-knight23/37-tool-text-to-speech"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="voice-btn-secondary p-3"
-            aria-label="View source on GitHub"
-          >
-            <Github :size="20" />
-          </a>
         </div>
       </nav>
     </header>
 
     <!-- Main Content -->
-    <main id="main-content" class="max-w-4xl mx-auto px-6 py-12">
-      <!-- Page Title -->
-      <div class="mb-12 text-center">
-        <h2 class="text-4xl font-bold text-voice-text mb-4">
-          Text to Speech
-        </h2>
-        <p class="text-lg text-voice-secondary max-w-xl mx-auto">
-          Convert any text into spoken words using your browser's built-in speech synthesis.
-          Simple, accessible, and free.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main Editor -->
-        <div class="lg:col-span-2 space-y-8">
-          <!-- Text Input -->
-          <div class="voice-card">
-            <!-- Usage Tip -->
-            <div class="mb-4 p-3 bg-voice-primary/5 border border-voice-primary/20 rounded-lg flex items-start gap-3">
-              <span class="text-xl" aria-hidden="true">{{ currentTip?.icon }}</span>
-              <div>
-                <p class="text-sm text-voice-text font-medium">Tip for better speech:</p>
-                <p class="text-sm text-voice-secondary mt-1">{{ currentTip?.tip }}</p>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between mb-3">
-              <label for="text-input" class="block text-sm font-semibold text-voice-secondary">
-                Enter text to speak
-              </label>
-              <div class="flex items-center gap-2">
-                <input
-                  type="file"
-                  id="file-upload"
-                  accept=".txt,.md,text/*"
-                  @change="handleFileUpload"
-                  class="hidden"
-                />
-                <label
-                  for="file-upload"
-                  class="voice-btn-secondary text-xs px-3 py-1 cursor-pointer flex items-center gap-1"
-                >
-                  <Upload :size="14" />
-                  Upload .txt
-                </label>
-                <button
-                  v-if="text"
-                  @click="text = ''"
-                  class="voice-btn-secondary text-xs px-3 py-1 flex items-center gap-1"
-                  aria-label="Clear text"
-                >
-                  <X :size="14" />
-                  Clear
-                </button>
-              </div>
-            </div>
-            <textarea
-              id="text-input"
-              v-model="text"
-              @click="recordClick"
-              class="voice-textarea w-full"
-              placeholder="Type, paste, or upload your content here..."
-              aria-describedby="char-count"
-            ></textarea>
-            <div id="char-count" class="mt-3 text-sm text-voice-muted">
-              {{ text.length }} characters
-            </div>
-          </div>
-
-          <!-- Playback Controls -->
-          <div class="voice-card">
-            <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
-              <!-- Play/Pause Button -->
-              <button
-                @click="speak"
-                @click.capture="recordClick"
-                class="voice-btn-primary flex-shrink-0"
-                :aria-label="isPaused ? 'Resume speech' : isSpeaking ? 'Pause speech' : 'Start speech'"
-              >
-                <Play v-if="!isSpeaking || isPaused" :size="24" fill="currentColor" />
-                <Pause v-else :size="24" fill="currentColor" />
-                <span>{{ isPaused ? 'Resume' : isSpeaking ? 'Pause' : 'Speak' }}</span>
-              </button>
-
-              <!-- Waveform Visualization -->
-              <div
-                class="voice-waveform flex-1"
-                :class="{ 'voice-speaking': isSpeaking }"
-                aria-hidden="true"
-              >
-                <div
-                  v-for="i in waveformBars"
-                  :key="i"
-                  class="voice-waveform-bar"
-                  :style="{ animationDelay: `${i * 0.1}s` }"
-                ></div>
-              </div>
-
-              <!-- Stop Button -->
-              <button
-                @click="stop"
-                @click.capture="recordClick"
-                class="voice-btn-secondary flex-shrink-0"
-                aria-label="Stop speech"
-              >
-                <Square :size="20" fill="currentColor" />
-                <span class="sr-only">Stop</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Voice Status Announcement -->
-          <div
-            v-if="isSpeaking"
-            role="status"
-            aria-live="polite"
-            class="voice-card"
-            :class="isPaused ? 'bg-voice-muted/20 border-voice-muted' : 'bg-voice-primary/10 border-voice-primary'"
-          >
-            <div class="flex items-center justify-center gap-3 py-3">
-              <div class="voice-waveform-mini" :class="{ 'opacity-50': isPaused }">
-                <div
-                  v-for="i in 3"
-                  :key="i"
-                  class="voice-waveform-bar-mini"
-                  :style="{ animationDelay: `${i * 0.15}s`, animationPlayState: isPaused ? 'paused' : 'running' }"
-                ></div>
-              </div>
-              <span class="text-sm font-medium" :class="isPaused ? 'text-voice-muted' : 'text-voice-primary'">
-                {{ isPaused ? 'Paused' : 'Speaking...' }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="space-y-6">
-          <!-- Voice Selection -->
-          <div class="voice-card">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-semibold text-voice-secondary flex items-center gap-2">
-                <Languages :size="18" />
-                Voice
-              </h3>
-              <button
-                @click="loadVoices"
-                class="text-voice-primary hover:underline text-sm"
-                aria-label="Refresh voices"
-              >
-                <RotateCcw :size="16" />
-              </button>
-            </div>
-            <select
-              v-model="selectedVoice"
-              @click="recordClick"
-              class="voice-select w-full"
-              aria-label="Select voice"
-            >
-              <option v-for="voice in voices" :key="voice.name" :value="voice">
-                {{ voice.name }} ({{ voice.lang }})
-              </option>
-            </select>
-            <p class="mt-3 text-sm text-voice-muted">
-              {{ voices.length }} voices available
-            </p>
-          </div>
-
-          <!-- Speech Controls -->
-          <div class="voice-card">
-            <h3 class="text-sm font-semibold text-voice-secondary mb-6 flex items-center gap-2">
-              <Settings2 :size="18" />
-              Speech Settings
-            </h3>
-
-            <div class="space-y-6">
-              <!-- Rate -->
-              <div>
-                <div class="flex justify-between mb-2">
-                  <label for="rate-control" class="text-sm font-medium text-voice-text">
-                    Speed
-                  </label>
-                  <span id="rate-value" class="text-sm text-voice-primary font-medium">
-                    {{ store.settings.rate.toFixed(1) }}x
-                  </span>
-                </div>
-                <input
-                  id="rate-control"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  v-model="store.settings.rate"
-                  class="voice-slider"
-                  aria-labelledby="rate-control"
-                  aria-valuetext="Speed: {{ store.settings.rate.toFixed(1) }}x"
-                >
-              </div>
-
-              <!-- Pitch -->
-              <div>
-                <div class="flex justify-between mb-2">
-                  <label for="pitch-control" class="text-sm font-medium text-voice-text">
-                    Pitch
-                  </label>
-                  <span id="pitch-value" class="text-sm text-voice-primary font-medium">
-                    {{ store.settings.pitch.toFixed(1) }}
-                  </span>
-                </div>
-                <input
-                  id="pitch-control"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  v-model="store.settings.pitch"
-                  class="voice-slider"
-                  aria-labelledby="pitch-control"
-                  aria-valuetext="Pitch: {{ store.settings.pitch.toFixed(1) }}"
-                >
-              </div>
-
-              <!-- Volume -->
-              <div>
-                <div class="flex justify-between mb-2">
-                  <label for="volume-control" class="text-sm font-medium text-voice-text">
-                    Volume
-                  </label>
-                  <span id="volume-value" class="text-sm text-voice-primary font-medium">
-                    {{ Math.round(store.settings.volume * 100) }}%
-                  </span>
-                </div>
-                <input
-                  id="volume-control"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  v-model="store.settings.volume"
-                  class="voice-slider"
-                  aria-labelledby="volume-control"
-                  aria-valuetext="Volume: {{ Math.round(store.settings.volume * 100) }}%"
-                >
-              </div>
-            </div>
-          </div>
-
-          <!-- History -->
-          <div class="voice-card">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-semibold text-voice-secondary flex items-center gap-2">
-                <HistoryIcon :size="18" />
-                History
-              </h3>
-              <button
-                v-if="store.history.length > 0"
-                @click="store.clearHistory"
-                class="text-red-600 hover:underline text-sm"
-              >
-                Clear
-              </button>
-            </div>
-
-            <div
-              v-if="store.history.length > 0"
-              class="space-y-3 max-h-64 overflow-y-auto voice-scrollbar"
-            >
-              <div
-                v-for="h in store.history"
-                :key="h.id"
-                class="p-3 bg-voice-bg border border-voice-border rounded-lg"
-              >
-                <p class="text-sm text-voice-text truncate mb-1">{{ h.text }}</p>
-                <p class="text-xs text-voice-muted">{{ h.voice }}</p>
-              </div>
-            </div>
-
-            <div
-              v-else
-              class="text-center py-8 border-2 border-dashed border-voice-border rounded-lg"
-            >
-              <HistoryIcon :size="32" :stroke-width="1.5" class="mx-auto mb-2 text-voice-muted opacity-50" />
-              <p class="text-sm text-voice-muted">No speech history yet</p>
-              <p class="text-xs text-voice-muted mt-1">Your recent speeches will appear here</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <main>
+      <router-view />
     </main>
 
-    <!-- Keyboard Shortcuts Panel -->
-    <Teleport to="body">
-      <div
-        v-if="showShortcuts"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-        @click="showShortcuts = false"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="shortcuts-title"
-      >
-        <div
-          class="voice-card max-w-md w-full p-6"
-          @click.stop
-        >
-          <div class="flex items-center justify-between mb-6">
-            <h2 id="shortcuts-title" class="text-xl font-bold text-voice-text">Keyboard Shortcuts</h2>
-            <button
-              @click="showShortcuts = false"
-              class="voice-btn-secondary p-2"
-              aria-label="Close shortcuts panel"
-            >
-              <X :size="20" />
-            </button>
-          </div>
-
-          <div class="space-y-3">
-            <div
-              v-for="(shortcut, index) in keyboardShortcuts"
-              :key="index"
-              class="flex items-center justify-between p-3 bg-voice-bg rounded-lg border border-voice-border"
-            >
-              <div class="flex items-center gap-3">
-                <kbd class="px-2 py-1 text-sm bg-voice-surface border border-voice-border rounded font-mono">
-                  {{ shortcut.key }}
-                </kbd>
-                <span class="text-sm text-voice-text">{{ shortcut.action }}</span>
-              </div>
-              <span class="text-xs text-voice-muted">{{ shortcut.condition }}</span>
-            </div>
-          </div>
-
-          <div class="mt-6 pt-4 border-t border-voice-border">
-            <p class="text-xs text-voice-muted text-center">
-              Press <kbd class="px-1.5 py-0.5 bg-voice-surface border border-voice-border rounded font-mono text-xs">Escape</kbd> or click outside to close
-            </p>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
     <!-- Footer -->
-    <footer class="border-t border-voice-border mt-12">
-      <div class="max-w-4xl mx-auto px-6 py-8 text-center">
-        <p class="text-sm text-voice-muted">
+    <footer class="border-t border-gray-200 dark:border-gray-700 mt-12">
+      <div class="max-w-6xl mx-auto px-4 py-6 text-center">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
           Made by MK — Musharraf Kazi
         </p>
-        <p class="text-xs text-voice-muted mt-2">
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
           Works entirely in your browser. No data is sent to any server.
         </p>
       </div>
     </footer>
   </div>
 </template>
+
+<script setup lang="ts">
+import { Volume2, Home, History as HistoryIcon, Heart, Settings } from 'lucide-vue-next'
+</script>
+
+<style scoped>
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: rgb(107, 114, 128);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  background-color: rgb(243, 244, 246);
+}
+
+.dark .nav-link {
+  color: rgb(156, 163, 175);
+}
+
+.dark .nav-link:hover {
+  background-color: rgb(55, 65, 81);
+}
+</style>
