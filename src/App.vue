@@ -1,8 +1,9 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <Toaster position="top-right" richColors />
     <!-- Header Navigation -->
     <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-      <nav class="max-w-6xl mx-auto px-4 py-4">
+      <nav class="max-w-6xl mx-auto px-4 py-4" aria-label="Main Navigation">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <router-link to="/" class="flex items-center gap-3">
@@ -75,6 +76,7 @@
 
 <script setup lang="ts">
 import { Volume2, Home, History as HistoryIcon, Heart, Settings } from 'lucide-vue-next'
+import { Toaster } from 'vue-sonner'
 </script>
 
 <style scoped>

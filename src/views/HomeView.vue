@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { toast } from 'vue-sonner'
 import { useTtsStore } from '../stores/ttsStore'
 import { useSettingsStore } from '../stores/settings'
 import { useStatsStore } from '../stores/stats'
@@ -94,7 +95,15 @@ const speak = () => {
     return
   }
 
-  if (!text.value) return
+  if (!text.value.trim()) {
+    toast.error('Please enter some text to speak')
+    return
+  }
+
+  if (text.value.length > 5000) {
+    toast.error('Text is too long (max 5000 characters)')
+    return
+  }
 
   const utterance = new SpeechSynthesisUtterance(text.value)
   if (selectedVoice.value) utterance.voice = selectedVoice.value
@@ -112,12 +121,14 @@ const speak = () => {
     currentUtterance = null
     statsStore.recordSpeechGeneration(text.value.length)
     audio.playSuccess()
+    toast.success('Speech synthesis complete')
   }
   utterance.onerror = () => {
     isSpeaking.value = false
     isPaused.value = false
     currentUtterance = null
     audio.playError()
+    toast.error('Speech synthesis failed')
   }
 
   currentUtterance = utterance
@@ -208,7 +219,7 @@ const handleFileUpload = (event: Event) => {
             <Volume2 :size="24" />
           </div>
           <div>
-            <h1 class="text-2xl font-bold text-voice-text">VoiceFlow</h1>
+            <h1 class="text-2xl font-bold text-voice-text" id="app-title">VoiceFlow</h1>
             <p class="text-sm text-voice-muted">Text to Speech</p>
           </div>
         </div>
