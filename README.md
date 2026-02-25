@@ -1,3 +1,5 @@
+# 37-tool-text-to-speech
+
 # VoiceFlow — Text to Speech
 
 A production-grade, accessible Text-to-Speech utility built with Vue 3 and the native Web Speech API.
@@ -99,3 +101,57 @@ MIT License - See [LICENSE](LICENSE) for details.
 ---
 
 Made by [Musharraf Kazi](https://github.com/mk-knight23)
+
+
+## ✨ Features
+
+This repository has been upgraded with the following features:
+
+1. **Add Vue 3 Composition API** ✅
+2. **Implement Pinia for state** ✅
+3. **Add Vue Router guards** ✅
+4. **Create composables** ✅
+5. **Add Teleport and Suspense** ✅
+6. **Implement v-model optimization** ✅
+7. **Add TypeScript support** ✅
+8. **Create reusable components** ✅
+9. **Add transitions and animations** ✅
+10. **Implement Vitest tests** ✅
+
+---
+
+## 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## 📦 Tech Stack
+
+- Modern web framework
+- Optimized for performance
+- Responsive design
+- Accessibility ready
+
+## 🛠️ Installation
+
+```bash
+git clone https://github.com/mk-knight23/37-tool-text-to-speech.git
+cd 37-tool-text-to-speech
+npm install
+```
+
+## 📝 License
+
+MIT
+
+---
+
+*Last updated: 2026-02-25*
