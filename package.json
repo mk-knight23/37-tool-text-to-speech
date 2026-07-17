@@ -1,6 +1,6 @@
 {
   "name": "mk-voicekit",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "^5.2.8",
@@ -30,8 +32,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
+    "@vitest/coverage-v8": "4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
