@@ -1,65 +1,174 @@
-import Image from "next/image";
+import Link from "next/link";
+import {
+  FileText,
+  Keyboard,
+  Languages,
+  ListMusic,
+  Lock,
+  Highlighter,
+  SlidersHorizontal,
+  CircleAlert,
+} from "lucide-react";
+import { SITE } from "@/lib/site";
+import { pageMetadata } from "@/lib/seo";
+import { Button } from "@/components/ui/Button";
+import { Waveform } from "@/components/ui/Waveform";
+
+export const metadata = pageMetadata({
+  title: `${SITE.name} — read anything aloud in your browser`,
+  description:
+    "MK VoiceKit turns text, Markdown, PDFs and subtitle files into speech using your browser's own voices — with live highlighting, chapters, presets and full keyboard control. Free and open source.",
+  path: "/",
+});
+
+const FEATURES = [
+  {
+    icon: FileText,
+    title: "Bring your own text",
+    body: "Paste plain text or Markdown, extract text from a PDF, or import .srt/.vtt subtitles — timestamps are stripped automatically. Files are read in your browser and never uploaded.",
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "Voices and controls",
+    body: "Every voice your browser offers, grouped by language and searchable. Adjust speed, pitch and volume with live readouts, and save combinations as named presets.",
+  },
+  {
+    icon: Highlighter,
+    title: "Follow along",
+    body: "The current sentence is highlighted as it's read, with word-level highlighting where your browser reports it. Click any sentence to start from there.",
+  },
+  {
+    icon: Keyboard,
+    title: "Keyboard first",
+    body: "Space to play or pause, arrows to move by sentence or paragraph, Escape to stop. Press ? to see every shortcut — and each one actually works.",
+  },
+  {
+    icon: ListMusic,
+    title: "Queue and history",
+    body: "Line up several sections to listen back to back, and revisit anything you've played from a local history you can search, replay or clear.",
+  },
+  {
+    icon: Languages,
+    title: "Readability helpers",
+    body: "Optional local processing expands numbers and abbreviations and normalizes pauses so speech sounds more natural. It runs on your device — not through any AI service.",
+  },
+];
+
+function jsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: SITE.name,
+    description: SITE.tagline,
+    url: SITE.url,
+    applicationCategory: "UtilityApplication",
+    operatingSystem: "Any (modern web browser)",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    author: {
+      "@type": "Person",
+      name: SITE.creator.name,
+      url: SITE.creator.portfolio,
+    },
+    isAccessibleForFree: true,
+  };
+}
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd()) }}
+      />
+
+      <section className="vk-hero-fade">
+        <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:py-28">
+          <div className="mb-6 flex justify-center">
+            <Waveform bars={7} className="h-10" />
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+            Read anything aloud, right in your browser
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-text-muted">
+            {SITE.name} turns text, PDFs and subtitles into speech using the
+            voices already on your device. No account, no upload, no cost — it
+            works entirely in your browser.
           </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/tool">
+              <Button size="lg">Open the workspace</Button>
+            </Link>
+            <a href={SITE.repo} target="_blank" rel="noopener noreferrer">
+              <Button size="lg" variant="secondary">
+                View the source
+              </Button>
+            </a>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      <section
+        aria-labelledby="features-heading"
+        className="mx-auto max-w-6xl px-4 py-12"
+      >
+        <h2 id="features-heading" className="sr-only">
+          What it does
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-1)]"
+            >
+              <feature.icon
+                className="mb-3 size-6 text-primary"
+                aria-hidden="true"
+              />
+              <h3 className="mb-1 text-lg font-bold">{feature.title}</h3>
+              <p className="text-text-muted">{feature.body}</p>
+            </div>
+          ))}
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-8">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-border bg-surface p-6">
+            <Lock className="mb-3 size-6 text-primary" aria-hidden="true" />
+            <h2 className="mb-2 text-xl font-bold">Your text stays with you</h2>
+            <p className="text-text-muted">
+              Speech is generated by your browser, so the text you paste or
+              import is not sent to a server. Your history, presets and queue
+              are stored locally on this device, and you can export or delete
+              them any time from Settings.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-6">
+            <CircleAlert className="mb-3 size-6 text-accent" aria-hidden="true" />
+            <h2 className="mb-2 text-xl font-bold">What it can’t do (yet)</h2>
+            <p className="text-text-muted">
+              The browser speech engine plays audio but gives no file to save,
+              so there is no MP3 or audio download — we won’t pretend otherwise.
+              Scanned PDFs with no text layer can’t be read (no OCR), and the
+              available voices differ from one browser and operating system to
+              the next.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-4xl px-4 py-16 text-center">
+        <h2 className="text-2xl font-bold">Try it with your own text</h2>
+        <p className="mx-auto mt-2 max-w-xl text-text-muted">
+          Paste an article, drop in a PDF, or load a subtitle file and press
+          play.
+        </p>
+        <div className="mt-6">
+          <Link href="/tool">
+            <Button size="lg">Open the workspace</Button>
+          </Link>
+        </div>
+      </section>
+    </>
   );
 }
