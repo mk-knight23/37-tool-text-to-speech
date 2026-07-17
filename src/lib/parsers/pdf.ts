@@ -15,11 +15,12 @@ export async function extractPdfText(data: ArrayBuffer): Promise<PdfExtraction> 
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-  const document = await pdfjs.getDocument({ data }).promise;
+  const loadingTask = pdfjs.getDocument({ data });
+  const pdfDocument = await loadingTask.promise;
   try {
     const pageTexts: string[] = [];
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
+    for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+      const page = await pdfDocument.getPage(pageNumber);
       const content = await page.getTextContent();
       const pageText = content.items
         .map((item) => ("str" in item ? item.str : ""))
@@ -31,9 +32,10 @@ export async function extractPdfText(data: ArrayBuffer): Promise<PdfExtraction> 
     }
     return {
       text: pageTexts.join("\n\n").trim(),
-      pages: document.numPages,
+      pages: pdfDocument.numPages,
     };
   } finally {
-    await document.destroy();
+    // Destroying the loading task tears down the document and its worker.
+    await loadingTask.destroy();
   }
 }
