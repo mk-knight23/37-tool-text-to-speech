@@ -1,0 +1,401 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Download, Trash2, Upload } from "lucide-react";
+import {
+  clearAllData,
+  DEFAULT_PREFS,
+  exportAllData,
+  getByokKey,
+  getStorageUsage,
+  ImportDataError,
+  importAllData,
+  setByokKey,
+  type StorageUsage,
+} from "@/lib/storage";
+import {
+  GTM_ID,
+  getConsent,
+  setConsent,
+  type ConsentState,
+} from "@/lib/analytics";
+import { usePrefs } from "@/hooks/usePrefs";
+import { Slider } from "@/components/workspace/Slider";
+import { ThemeModeSelect } from "@/components/theme/ThemeToggle";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/cn";
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function SettingsView() {
+  const { prefs, loaded, update } = usePrefs();
+  const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const [byok, setByok] = useState("");
+  const [byokSaved, setByokSaved] = useState(false);
+  const [consent, setConsentState] = useState<ConsentState | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const importRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    void getStorageUsage().then(setUsage);
+    void getByokKey().then((key) => {
+      if (key) {
+        setByok(key);
+        setByokSaved(true);
+      }
+    });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only consent read
+    setConsentState(getConsent());
+  }, []);
+
+  const handleExport = async () => {
+    const payload = await exportAllData();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `mk-voicekit-backup-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setMessage("Exported your data as a JSON file.");
+  };
+
+  const handleImportFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      await importAllData(await file.text());
+      setMessage("Import complete. Reloading…");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (error) {
+      setMessage(
+        error instanceof ImportDataError
+          ? error.message
+          : "Could not import that file."
+      );
+    }
+  };
+
+  const handleClearAll = async () => {
+    await clearAllData();
+    setConfirmClear(false);
+    setMessage("All local data cleared. Reloading…");
+    setTimeout(() => window.location.reload(), 600);
+  };
+
+  const saveByok = async () => {
+    await setByokKey(byok.trim() || null);
+    setByokSaved(byok.trim().length > 0);
+    setMessage(byok.trim() ? "Saved your key on this device." : "Removed the key.");
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8">
+      <h1 className="text-2xl font-bold sm:text-3xl">Settings</h1>
+      <p className="mt-1 text-text-muted">
+        Preferences are stored on this device. Nothing here is uploaded.
+      </p>
+
+      {message ? (
+        <p
+          role="status"
+          className="mt-4 rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-text-muted"
+        >
+          {message}
+        </p>
+      ) : null}
+
+      {/* Appearance */}
+      <Section title="Appearance">
+        <Field label="Theme">
+          <ThemeModeSelect />
+        </Field>
+        <Field
+          label="Reading text size"
+          hint="Applies to the transcript in the workspace."
+        >
+          <div
+            role="radiogroup"
+            aria-label="Reading text size"
+            className="inline-flex rounded-md border border-border-strong p-1 gap-1"
+          >
+            {(["base", "large"] as const).map((size) => (
+              <button
+                key={size}
+                type="button"
+                role="radio"
+                aria-checked={prefs.textScale === size}
+                onClick={() => update({ textScale: size })}
+                className={cn(
+                  "min-h-9 rounded-sm px-3 text-sm font-bold capitalize",
+                  prefs.textScale === size
+                    ? "bg-primary text-on-primary"
+                    : "text-text hover:bg-surface-sunken"
+                )}
+              >
+                {size === "base" ? "Standard" : "Large"}
+              </button>
+            ))}
+          </div>
+        </Field>
+      </Section>
+
+      {/* Playback defaults */}
+      <Section title="Default playback">
+        <p className="text-sm text-text-muted">
+          New sessions start with these values.
+        </p>
+        <div className="mt-2 flex flex-col gap-4">
+          <Slider
+            id="default-rate"
+            label="Speed"
+            min={0.5}
+            max={3}
+            step={0.1}
+            largeStep={0.5}
+            value={loaded ? prefs.defaultRate : DEFAULT_PREFS.defaultRate}
+            defaultValue={DEFAULT_PREFS.defaultRate}
+            onChange={(v) => update({ defaultRate: v })}
+            format={(v) => `${v.toFixed(1)}×`}
+            formatAria={(v) => `${v.toFixed(1)} times speed`}
+          />
+          <Slider
+            id="default-pitch"
+            label="Pitch"
+            min={0.5}
+            max={2}
+            step={0.1}
+            largeStep={0.5}
+            value={loaded ? prefs.defaultPitch : DEFAULT_PREFS.defaultPitch}
+            defaultValue={DEFAULT_PREFS.defaultPitch}
+            onChange={(v) => update({ defaultPitch: v })}
+            format={(v) => v.toFixed(1)}
+            formatAria={(v) => `pitch ${v.toFixed(1)}`}
+          />
+          <Slider
+            id="default-volume"
+            label="Volume"
+            min={0}
+            max={1}
+            step={0.05}
+            largeStep={0.2}
+            value={loaded ? prefs.defaultVolume : DEFAULT_PREFS.defaultVolume}
+            defaultValue={DEFAULT_PREFS.defaultVolume}
+            onChange={(v) => update({ defaultVolume: v })}
+            format={(v) => `${Math.round(v * 100)}%`}
+            formatAria={(v) => `volume ${Math.round(v * 100)} percent`}
+          />
+        </div>
+        <ToggleRow
+          label="Auto-scroll the transcript"
+          hint="Keeps the sentence being read in view."
+          checked={prefs.autoScroll}
+          onChange={(value) => update({ autoScroll: value })}
+        />
+      </Section>
+
+      {/* Privacy */}
+      <Section title="Privacy">
+        <ToggleRow
+          label="Save history"
+          hint="When off, played text is not recorded on this device."
+          checked={prefs.historyEnabled}
+          onChange={(value) => update({ historyEnabled: value })}
+        />
+        <Field label="Analytics">
+          {GTM_ID ? (
+            <div
+              role="radiogroup"
+              aria-label="Analytics consent"
+              className="inline-flex rounded-md border border-border-strong p-1 gap-1"
+            >
+              {(["denied", "granted"] as const).map((state) => (
+                <button
+                  key={state}
+                  type="button"
+                  role="radio"
+                  aria-checked={consent === state}
+                  onClick={() => {
+                    setConsent(state);
+                    setConsentState(state);
+                  }}
+                  className={cn(
+                    "min-h-9 rounded-sm px-3 text-sm font-bold",
+                    consent === state
+                      ? "bg-primary text-on-primary"
+                      : "text-text hover:bg-surface-sunken"
+                  )}
+                >
+                  {state === "granted" ? "Allowed" : "Declined"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-text-muted">
+              Analytics is not configured in this build, so nothing is tracked
+              and no third-party scripts load.
+            </p>
+          )}
+        </Field>
+      </Section>
+
+      {/* BYOK */}
+      <Section title="AI key (optional)">
+        <p className="text-sm text-text-muted">
+          AI-assisted text tools are on the roadmap, not shipped in this
+          version. If you have a Vercel AI Gateway key you can store it here
+          now; it stays on this device and is only ever sent with a request you
+          start yourself — never logged or saved on a server.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="password"
+            value={byok}
+            onChange={(event) => {
+              setByok(event.target.value);
+              setByokSaved(false);
+            }}
+            placeholder="Paste your key"
+            aria-label="AI gateway key"
+            autoComplete="off"
+            className="flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
+          />
+          <Button variant="secondary" onClick={saveByok}>
+            {byokSaved ? "Saved" : "Save key"}
+          </Button>
+        </div>
+      </Section>
+
+      {/* Data */}
+      <Section title="Your data">
+        {usage && usage.usedBytes !== null ? (
+          <p className="text-sm text-text-muted">
+            Using {formatBytes(usage.usedBytes)}
+            {usage.quotaBytes
+              ? ` of about ${formatBytes(usage.quotaBytes)} available`
+              : ""}
+            .
+          </p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={handleExport}>
+            <Download className="size-4" aria-hidden="true" />
+            Export
+          </Button>
+          <Button variant="secondary" onClick={() => importRef.current?.click()}>
+            <Upload className="size-4" aria-hidden="true" />
+            Import
+          </Button>
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            onChange={(event) => {
+              void handleImportFile(event.target.files?.[0]);
+              event.target.value = "";
+            }}
+          />
+          {confirmClear ? (
+            <div className="flex items-center gap-2">
+              <Button variant="danger" onClick={handleClearAll}>
+                <Trash2 className="size-4" aria-hidden="true" />
+                Confirm clear all
+              </Button>
+              <Button variant="ghost" onClick={() => setConfirmClear(false)}>
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" onClick={() => setConfirmClear(true)}>
+              <Trash2 className="size-4" aria-hidden="true" />
+              Clear all data
+            </Button>
+          )}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="mt-6 rounded-xl border border-border bg-surface p-5">
+      <h2 className="mb-3 text-lg font-bold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-4 last:mb-0">
+      <p className="mb-1 font-medium">{label}</p>
+      {hint ? <p className="mb-2 text-sm text-text-muted">{hint}</p> : null}
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="mt-4 flex cursor-pointer items-start justify-between gap-4">
+      <span>
+        <span className="font-medium text-text">{label}</span>
+        {hint ? (
+          <span className="block text-sm text-text-muted">{hint}</span>
+        ) : null}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+          checked ? "bg-primary" : "bg-border-strong"
+        )}
+      >
+        <span
+          className={cn(
+            "inline-block size-5 rounded-full bg-white transition-transform",
+            checked ? "translate-x-5" : "translate-x-0.5"
+          )}
+        />
+      </button>
+    </label>
+  );
+}
