@@ -11,12 +11,12 @@
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-const streamTextMock = vi.fn();
+const generateTextMock = vi.fn();
 const generateObjectMock = vi.fn();
 const hasServerCredentialsMock = vi.fn(() => true);
 
 vi.mock("ai", () => ({
-  streamText: (...args: unknown[]) => streamTextMock(...args),
+  generateText: (...args: unknown[]) => generateTextMock(...args),
   generateObject: (...args: unknown[]) => generateObjectMock(...args),
 }));
 
@@ -28,15 +28,6 @@ vi.mock("@/lib/ai/models", () => ({
 import { POST } from "@/app/api/ai/[capability]/route";
 import { __resetRateLimiter } from "@/lib/ai/rate-limit";
 import { __resetQuota } from "@/lib/ai/quota";
-
-/** streamText returns an object with a `textStream` async-iterable property. */
-function streamResult(chunks: string[], throwError?: Error) {
-  const gen = (async function* () {
-    for (const chunk of chunks) yield chunk;
-    if (throwError) throw throwError;
-  })();
-  return { textStream: gen };
-}
 
 function post(capability: string, body: unknown, ip = "1.2.3.4"): Promise<Response> {
   const req = new Request(`http://localhost/api/ai/${capability}`, {
@@ -51,7 +42,7 @@ beforeEach(() => {
   __resetRateLimiter();
   __resetQuota();
   hasServerCredentialsMock.mockReturnValue(true);
-  streamTextMock.mockReset();
+  generateTextMock.mockReset();
   generateObjectMock.mockReset();
 });
 
@@ -60,18 +51,16 @@ afterEach(() => {
 });
 
 describe("POST /api/ai/<capability> — text mode", () => {
-  test("streams the model output as plain text on success", async () => {
-    streamTextMock.mockReturnValue(streamResult(["Hello ", "world."]));
+  test("returns the model output as plain text on success", async () => {
+    generateTextMock.mockResolvedValue({ text: "Hello world." });
     const res = await post("summarize", { text: "some article text" }, "10.0.0.1");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/plain");
     expect(await res.text()).toBe("Hello world.");
   });
 
-  test("a model failure before any output becomes an honest ai_error, not empty 200", async () => {
-    streamTextMock.mockReturnValue(
-      streamResult([], new Error("provider auth failed"))
-    );
+  test("a model failure becomes an honest ai_error, never a silent empty 200", async () => {
+    generateTextMock.mockRejectedValue(new Error("provider auth failed"));
     const res = await post("summarize", { text: "some article text" }, "10.0.0.2");
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: { code: string; message: string } };
@@ -80,21 +69,12 @@ describe("POST /api/ai/<capability> — text mode", () => {
     expect(body.error.message).not.toContain("provider auth failed");
   });
 
-  test("client cancellation before output returns 499 with no body", async () => {
+  test("client cancellation returns 499 with no body", async () => {
     const abort = new Error("aborted");
     abort.name = "AbortError";
-    streamTextMock.mockReturnValue(streamResult([], abort));
+    generateTextMock.mockRejectedValue(abort);
     const res = await post("summarize", { text: "some article text" }, "10.0.0.3");
     expect(res.status).toBe(499);
-  });
-
-  test("mid-stream failure keeps the real partial text (never fabricated)", async () => {
-    streamTextMock.mockReturnValue(
-      streamResult(["Partial output"], new Error("dropped mid-stream"))
-    );
-    const res = await post("simplify", { text: "text" }, "10.0.0.4");
-    expect(res.status).toBe(200);
-    expect(await res.text()).toBe("Partial output");
   });
 });
 
@@ -111,7 +91,7 @@ describe("POST /api/ai/<capability> — guards", () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("invalid_input");
-    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(generateTextMock).not.toHaveBeenCalled();
   });
 
   test("no server credentials and no BYOK → honest 503 ai_unavailable", async () => {
@@ -120,7 +100,7 @@ describe("POST /api/ai/<capability> — guards", () => {
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("ai_unavailable");
-    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(generateTextMock).not.toHaveBeenCalled();
   });
 });
 

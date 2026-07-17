@@ -4,7 +4,7 @@
  *
  * Pipeline: validate capability → per-IP rate limit → parse + size guard →
  * zod input validation → credential check → anonymous daily quota →
- * streamText (text mode) / generateObject (object mode) via a gateway model
+ * generateText (text mode) / generateObject (object mode) via a gateway model
  * string. BYOK (`x-byok-key`) overrides the gateway credential for that one
  * request and bypasses the server quota; it is never logged or persisted.
  *
@@ -12,7 +12,7 @@
  * client that aborts the fetch also aborts the upstream generation.
  */
 
-import { streamText, generateObject } from "ai";
+import { generateText, generateObject } from "ai";
 import { getSpec } from "@/lib/ai/capabilities";
 import {
   getCapabilityMeta,
@@ -130,56 +130,33 @@ export async function POST(req: Request, context: RouteContext) {
       }
     }
 
-    // 6b. Text mode → streamed plain text with honest early-error handling.
+    // 6b. Text mode → full text via generateText, returned as plain text.
     //
-    // We drive `textStream` manually instead of `toTextStreamResponse()` (which
-    // is deprecated and would emit HTTP 200 with an empty body when the model
-    // call fails — a silent failure that looks like success). By pulling the
-    // first chunk before we commit the response, the dominant failure modes
-    // (bad key, no credit, unknown model, provider auth) surface as a real
-    // structured error the UI can render honestly. A rarer mid-stream failure,
-    // after real text has begun, ends the stream cleanly — the client keeps the
-    // genuine text already produced and nothing is fabricated.
-    const textResult = streamText({
-      model,
-      system: built.system,
-      prompt: built.prompt,
-      abortSignal: req.signal,
-    });
-
-    const iterator = textResult.textStream[Symbol.asyncIterator]();
-    let first: IteratorResult<string>;
+    // We deliberately do NOT stream. `streamText` routes fatal failures (bad
+    // key, no credit, unknown model, provider auth) to its internal onError and
+    // then CLOSES the text stream empty — which reaches the client as a silent
+    // HTTP 200 with no body, indistinguishable from a real empty result. That
+    // violates the product's honesty rule (never present a blank as success).
+    // Awaiting `generateText` throws on failure (verified: the object-mode path
+    // behaves the same), so a failure always becomes an honest structured error
+    // and a success is the genuine model text. Plain text keeps the existing
+    // client reader unchanged.
     try {
-      first = await iterator.next();
+      const { text } = await generateText({
+        model,
+        system: built.system,
+        prompt: built.prompt,
+        abortSignal: req.signal,
+      });
+      return new Response(text, {
+        headers: {
+          "content-type": "text/plain; charset=utf-8",
+          ...quotaHeaders(quota),
+        },
+      });
     } catch (error) {
       return handleModelError(error);
     }
-
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        try {
-          if (!first.done) controller.enqueue(encoder.encode(first.value));
-          let next = await iterator.next();
-          while (!next.done) {
-            controller.enqueue(encoder.encode(next.value));
-            next = await iterator.next();
-          }
-        } catch {
-          // Mid-stream failure after output began: stop cleanly. Never log the
-          // prompt, key, or provider detail; never fabricate a completion.
-        } finally {
-          controller.close();
-        }
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "content-type": "text/plain; charset=utf-8",
-        ...quotaHeaders(quota),
-      },
-    });
   } catch (error) {
     return errorResponse(error);
   }
