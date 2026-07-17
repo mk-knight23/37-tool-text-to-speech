@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMockStorage } from "../test/mockStorage";
 import { LOAD_TEXT_KEY, stashTextForWorkspace, takeStashedText } from "./handoff";
 
 describe("text handoff via sessionStorage", () => {
-  beforeEach(() => sessionStorage.clear());
+  // Stub sessionStorage so the suite is deterministic regardless of the
+  // runtime's ambient Web Storage support.
+  beforeEach(() => vi.stubGlobal("sessionStorage", createMockStorage()));
+  afterEach(() => vi.unstubAllGlobals());
 
   it("returns null when nothing has been stashed", () => {
     expect(takeStashedText()).toBeNull();
@@ -25,5 +29,13 @@ describe("text handoff via sessionStorage", () => {
   it("keeps text out of the URL by storing it under a fixed key", () => {
     stashTextForWorkspace("private draft");
     expect(sessionStorage.getItem(LOAD_TEXT_KEY)).toBe("private draft");
+  });
+
+  it("degrades to a no-op when sessionStorage is unavailable", () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal("sessionStorage", undefined);
+    // Best-effort: writing does not throw and reading returns null.
+    expect(() => stashTextForWorkspace("x")).not.toThrow();
+    expect(takeStashedText()).toBeNull();
   });
 });

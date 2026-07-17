@@ -39,7 +39,9 @@ describe("pageMetadata", () => {
     // Assert
     expect(meta.openGraph?.title).toBe(`FAQ · ${SITE.name}`);
     expect(meta.openGraph?.description).toBe("Common questions.");
-    expect(meta.twitter?.card).toBe("summary_large_image");
-    expect(meta.twitter?.title).toBe(`FAQ · ${SITE.name}`);
+    // Next's Twitter metadata is a union; narrow to read the card/title fields.
+    const twitter = meta.twitter as { card?: string; title?: string } | null;
+    expect(twitter?.card).toBe("summary_large_image");
+    expect(twitter?.title).toBe(`FAQ · ${SITE.name}`);
   });
 });
