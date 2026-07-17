@@ -3,6 +3,7 @@ import { ArrowRight, CalendarDays, Clock } from "lucide-react";
 import { SITE } from "@/lib/site";
 import type { ContentEntry } from "@/lib/content";
 import { Button } from "@/components/ui/Button";
+import { AdSlot } from "./AdSlot";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { GuideTracker } from "./GuideTracker";
 import { JsonLd } from "./JsonLd";
@@ -101,6 +102,9 @@ export function ArticleShell({
       </header>
 
       <article className="vk-prose mt-8">{children}</article>
+
+      {/* Reserved ad slot — renders nothing while ads are disabled (default). */}
+      <AdSlot placement="guide-inline" />
 
       <aside className="mt-12 rounded-xl border border-border bg-surface-sunken p-6">
         <h2 className="text-xl font-bold">Try it with your own text</h2>
