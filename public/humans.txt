@@ -1,0 +1,14 @@
+/* TEAM */
+  Creator: Kazi Musharraf
+  Role: AI Engineer, Full-Stack Developer, Open-Source Builder
+  GitHub: https://github.com/mk-knight23
+  Site: https://www.mkazi.live
+
+/* SITE */
+  Product: MK VoiceKit
+  Purpose: A free, local-first browser text-to-speech workspace
+  Source: https://github.com/mk-knight23/37-tool-text-to-speech
+  License: MIT
+  Standards: HTML5, CSS3 (Tailwind v4), TypeScript
+  Components: Next.js (App Router), React, Web Speech API, pdf.js, idb
+  Fonts: Atkinson Hyperlegible (self-hosted, no CDN)

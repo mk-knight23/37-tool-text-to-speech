@@ -13,6 +13,8 @@ export const SITE = {
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
     "https://voicekit.mkazi.live",
   repo: "https://github.com/mk-knight23/37-tool-text-to-speech",
+  /** Public contact address (also used in .well-known/security.txt). */
+  contactEmail: "kazi@reprime.com",
   creator: {
     name: "Kazi Musharraf",
     role: "AI Engineer · Full-Stack Developer · Open-Source Builder",
@@ -24,15 +26,63 @@ export const SITE = {
     "Built and maintained by Kazi Musharraf. Open source for everyone.",
 } as const;
 
+/** New GitHub issue link for bug reports / requests. */
+export const ISSUES_URL = `${SITE.repo}/issues/new`;
+
 export interface NavLink {
   href: string;
   label: string;
 }
 
-/** Primary navigation — links only to routes that exist in this build. */
+/** Header navigation — the core app surfaces plus the content hubs. */
 export const PRIMARY_NAV: NavLink[] = [
   { href: "/tool", label: "Workspace" },
+  { href: "/guides", label: "Guides" },
+  { href: "/docs", label: "Docs" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/history", label: "History" },
-  { href: "/settings", label: "Settings" },
+];
+
+export interface FooterSection {
+  heading: string;
+  links: NavLink[];
+}
+
+/** Grouped footer navigation covering every public route (STANDARDS §4/§5). */
+export const FOOTER_SECTIONS: FooterSection[] = [
+  {
+    heading: "Product",
+    links: [
+      { href: "/tool", label: "Workspace" },
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/history", label: "History" },
+      { href: "/settings", label: "Settings" },
+    ],
+  },
+  {
+    heading: "Learn",
+    links: [
+      { href: "/docs", label: "Docs" },
+      { href: "/guides", label: "Guides" },
+      { href: "/use-cases", label: "Use cases" },
+      { href: "/faq", label: "FAQ" },
+    ],
+  },
+  {
+    heading: "Project",
+    links: [
+      { href: "/about", label: "About" },
+      { href: "/creator", label: "Creator" },
+      { href: "/open-source", label: "Open source" },
+      { href: "/changelog", label: "Changelog" },
+      { href: "/contact", label: "Contact" },
+    ],
+  },
+  {
+    heading: "Legal",
+    links: [
+      { href: "/privacy", label: "Privacy" },
+      { href: "/terms", label: "Terms" },
+      { href: "/cookies", label: "Cookies" },
+    ],
+  },
 ];

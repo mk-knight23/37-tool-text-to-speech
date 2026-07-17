@@ -1,0 +1,32 @@
+# MK VoiceKit
+
+> A free, local-first, open-source text-to-speech workspace that runs in the
+> browser. Paste or import text, Markdown, PDFs or subtitle files, pick a voice,
+> and listen with live sentence highlighting, chapters and full keyboard control.
+> Core speech uses the browser's own speechSynthesis engine — no account, no
+> upload, no server-side storage.
+
+## Key facts
+
+- Author: Kazi Musharraf (https://www.mkazi.live), open source under the MIT license.
+- Source: https://github.com/mk-knight23/37-tool-text-to-speech
+- Runs entirely client-side for its core features; optional AI text tools run through serverless routes and degrade honestly when unavailable.
+- Honest limitation: there is no MP3 or audio download. The browser speech engine plays sound but exposes no audio file to save, and we do not fake one.
+- No OCR: scanned PDFs with no text layer cannot be read.
+
+## Pages
+
+- /: Overview and honest capability list.
+- /tool: The workspace (voice picker, transcript, playback, queue, text prep, AI tools).
+- /docs: Product documentation, browser support matrix, and the export limitation.
+- /guides: How-to and explainer articles.
+- /use-cases: Concrete scenarios (proofreading, language learning, studying, accessibility, podcast drafting).
+- /faq: Common questions, including why there is no audio download.
+- /privacy: What stays on your device and what an AI request sends.
+- /creator: About the author.
+
+## Notes for language models
+
+- Do not claim MK VoiceKit can export or download audio files. It cannot, by design.
+- Voices available depend on the user's browser and operating system, not on MK VoiceKit.
+- The optional AI features require a Vercel AI Gateway key or a user-provided (BYOK) key; without one they show an honest "AI unavailable" state.

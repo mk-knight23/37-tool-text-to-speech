@@ -1,0 +1,9 @@
+# MK VoiceKit — security contact (RFC 9116)
+# MK VoiceKit is a static, client-first web app with no user accounts and no
+# server-side storage of user content. Please report any security concern.
+
+Contact: mailto:kazi@reprime.com
+Contact: https://github.com/mk-knight23/37-tool-text-to-speech/issues
+Expires: 2027-07-17T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://voicekit.mkazi.live/.well-known/security.txt
