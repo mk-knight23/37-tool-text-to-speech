@@ -1,4 +1,4 @@
-import { Github, Globe } from "lucide-react";
+import { GitBranch, Globe } from "lucide-react";
 import { SITE } from "@/lib/site";
 import { pageMetadata } from "@/lib/seo";
 import { StaticPage } from "@/components/content/StaticPage";
@@ -58,7 +58,7 @@ export default function CreatorPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary hover:underline"
             >
-              <Github className="size-4" aria-hidden="true" />
+              <GitBranch className="size-4" aria-hidden="true" />
               github.com/mk-knight23
             </a>
           </li>

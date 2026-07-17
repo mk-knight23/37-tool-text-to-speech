@@ -1,4 +1,4 @@
-import { Bug, Github, Mail } from "lucide-react";
+import { Bug, GitBranch, Mail } from "lucide-react";
 import { SITE, ISSUES_URL } from "@/lib/site";
 import { pageMetadata } from "@/lib/seo";
 import { StaticPage } from "@/components/content/StaticPage";
@@ -26,7 +26,7 @@ export default function ContactPage() {
           href={ISSUES_URL}
         />
         <ContactCard
-          icon={Github}
+          icon={GitBranch}
           title="Browse or fork the code"
           body="The full source, the design system, and the product docs live in the repository. Pull requests are welcome — open an issue first for anything substantial."
           actionLabel="View the repository"
