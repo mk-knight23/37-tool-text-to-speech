@@ -1,12 +1,19 @@
 # Changelog
 
-All notable changes to MK VoiceKit. This project is pre-1.0; expect the
-workspace to keep evolving. The user-facing version of this log lives at
-`/changelog`.
+All notable changes to MK VoiceKit. The user-facing version of this log lives
+at `/changelog`.
 
-The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
+The format is loosely based on [Keep a Changelog](https://keepachangelog.com/)
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v2 rebuild (in development)
+## [Unreleased]
+
+Nothing yet.
+
+## [2.0.0] — 2026-07-18
+
+Full rebuild of MK VoiceKit. The v1 prototype is replaced by a local-first
+Next.js workspace with a real test suite, CI, and complete documentation.
 
 ### Added
 
