@@ -109,6 +109,33 @@ export default function Page() {
         </li>
       </ul>
 
+      <h2>A worked example</h2>
+      <p>
+        Suppose you&rsquo;ve got a dense, jargon-heavy paragraph you want to
+        listen to on a walk. You paste it in, open the AI panel, and run
+        &ldquo;simplify&rdquo; to get plainer wording, or &ldquo;change reading
+        level&rdquo; set to something easier. The result appears in the panel;
+        you read it over, and if it&rsquo;s good you send it straight to the
+        workspace and press play. If you&rsquo;d rather keep the original phrasing
+        but just hear it more clearly, you skip the AI entirely and reach for the
+        local text-prep toggles instead. The two approaches solve different
+        problems &mdash; rewriting versus mechanical clean-up &mdash; and
+        it&rsquo;s worth being clear which one you actually need before you send
+        anything to a model.
+      </p>
+
+      <h2>Limits and cost, plainly</h2>
+      <p>
+        The free daily allowance exists so the shared tier stays available and
+        isn&rsquo;t run up by heavy automated use. It resets each day, and the
+        usage indicator shows what&rsquo;s left. If you regularly need more, your
+        own key removes the limit and bills to your own gateway account rather
+        than the shared one &mdash; a fair trade, and the honest way to scale up.
+        None of the reading, importing, or local text-prep features count against
+        the limit or need a key at all; only the AI tools do, because only they
+        call a model.
+      </p>
+
       <h2>Check the output</h2>
       <p>
         AI can be wrong, and it can be confidently wrong. Treat a rewrite,

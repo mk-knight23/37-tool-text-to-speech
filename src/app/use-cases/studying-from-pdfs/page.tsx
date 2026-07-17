@@ -106,6 +106,30 @@ export default function Page() {
         its own.
       </p>
 
+      <h2>Pair listening with active recall</h2>
+      <p>
+        Listening alone is passive, and passive review doesn&rsquo;t stick as well
+        as testing yourself. The trick is to combine the two. Listen to a section,
+        then pause and try to say back the main points before moving on. Use the
+        left arrow to replay the bit you couldn&rsquo;t recall, which turns a gap
+        into a targeted re-listen rather than a re-read of the whole thing. The AI
+        summary tool can also condense a section into a few spoken points you can
+        use as a self-quiz afterwards. The audio gets the material into your head;
+        the recall step is what keeps it there.
+      </p>
+
+      <h2>A revision routine that uses audio</h2>
+      <p>
+        A workable rhythm across a week: on the first pass, listen to each section
+        end to end at a comfortable speed to get the shape of it. On later passes,
+        speed up slightly and listen only to the sections you found hard, which
+        your history makes easy to find again. Save a &ldquo;revision&rdquo; preset
+        so every session starts in the same clear voice and pace. Because the
+        queue and history persist on your device, you can spread this over several
+        days without rebuilding anything &mdash; you just pick up where you left
+        off.
+      </p>
+
       <p>
         One honest limit: there&rsquo;s no way to save the audio as a file to load
         into a separate player, because the browser speech engine doesn&rsquo;t

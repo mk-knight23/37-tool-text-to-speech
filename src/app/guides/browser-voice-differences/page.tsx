@@ -109,6 +109,37 @@ export default function Page() {
         handled for you.
       </p>
 
+      <h2>What to do when a voice sounds wrong</h2>
+      <p>
+        If a voice mangles a particular word, that&rsquo;s the voice&rsquo;s own
+        pronunciation dictionary at work, not something the app can override.
+        Two things help. First, try a different voice for that passage &mdash;
+        pronunciation varies a lot between them, and one voice&rsquo;s blind spot
+        is another&rsquo;s easy word. Second, use the local text-prep tools to
+        spell out numbers and abbreviations, which are the most common culprits;
+        a date, a unit or an acronym read as raw characters is the usual cause of
+        a jarring moment. For a proper name a voice insists on getting wrong,
+        respelling it phonetically in the text is a reliable last resort.
+      </p>
+      <p>
+        If a voice keeps stalling or cutting out mid-sentence, it&rsquo;s often a
+        network-backed voice losing its connection. Switch to one flagged as
+        local and the problem usually disappears, at the cost of a slightly less
+        polished sound.
+      </p>
+
+      <h2>Network voices and privacy</h2>
+      <p>
+        A few browser-provided voices synthesise speech on a remote server rather
+        than on your device. They can sound excellent, but they mean the text
+        being read is sent to that provider to be turned into audio &mdash; a
+        different privacy trade-off from the local voices that keep everything on
+        your machine. If that matters to you, stick to voices marked local; MK
+        VoiceKit flags them precisely so you can make an informed choice. The app
+        itself never uploads your text for the core reading; any network
+        involvement here comes from the browser&rsquo;s own voice, not from us.
+      </p>
+
       <h2>How to get more or better voices</h2>
       <p>
         Because voices are a system feature, you add them through your operating

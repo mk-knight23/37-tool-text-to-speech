@@ -116,6 +116,45 @@ export default function Page() {
         replacing them.
       </p>
 
+      <h2>What to listen for, specifically</h2>
+      <p>
+        It helps to know what your ear is good at catching, so you can listen for
+        it deliberately:
+      </p>
+      <ul>
+        <li>
+          <strong>Doubled words</strong> &mdash; &ldquo;the the&rdquo;,
+          &ldquo;and and&rdquo; &mdash; which the eye merges but the ear hears
+          twice.
+        </li>
+        <li>
+          <strong>Wrong small words</strong> &mdash; &ldquo;from&rdquo; for
+          &ldquo;form&rdquo;, &ldquo;of&rdquo; for &ldquo;or&rdquo;. They look
+          close enough to skim past but sound clearly wrong.
+        </li>
+        <li>
+          <strong>Homophones</strong> &mdash; their/there, its/it&rsquo;s,
+          your/you&rsquo;re. The voice reads what&rsquo;s written, so a wrong one
+          often lands oddly in context.
+        </li>
+        <li>
+          <strong>Sentences with no breathing room</strong> &mdash; if the voice
+          barrels on without a natural pause, the sentence is probably too long or
+          missing punctuation.
+        </li>
+      </ul>
+
+      <h2>Fitting it into your editing process</h2>
+      <p>
+        Ear-proofreading works best as a distinct stage, not something you do
+        while still writing. Finish your draft, do a normal visual edit, then run
+        a listening pass to catch what the first two missed. Because you can click
+        any sentence to start from it and step through with the arrows, you can
+        fix as you go without losing your place. Keep it as the last check before
+        you send or publish &mdash; it&rsquo;s the pass that catches the
+        embarrassing small mistakes that survive everything else.
+      </p>
+
       <p>
         None of this sends your draft anywhere. The reading happens in your
         browser, so you can proofread confidential writing without it leaving

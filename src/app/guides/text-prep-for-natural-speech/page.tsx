@@ -109,6 +109,33 @@ export default function Page() {
         </li>
       </ul>
 
+      <h2>A worked example</h2>
+      <p>
+        Take a sentence like: &ldquo;Dr. Alba met approx. 1,200 patients from
+        1998&ndash;2004, e.g. 3rd-year cases.&rdquo; Read literally, a voice makes
+        a mess of nearly every token &mdash; &ldquo;Dr dot&rdquo;, the raw comma
+        in the number, the year range as a dash, &ldquo;e g&rdquo;. With
+        abbreviation expansion it becomes &ldquo;Doctor Alba met
+        approximately&hellip;&rdquo;; with number expansion, &ldquo;one thousand
+        two hundred patients from nineteen ninety-eight to two thousand
+        four&hellip; for example, third-year cases.&rdquo; That&rsquo;s the whole
+        point of the panel: the same words, made speakable, with nothing invented.
+        The before/after preview shows you exactly this transformation before you
+        commit to it.
+      </p>
+
+      <h2>Combining the toggles</h2>
+      <p>
+        The three transforms are independent, so you can mix them to taste. A
+        common combination is numbers plus abbreviations on, pause-smoothing off,
+        which fixes the mechanical stumbles while leaving your phrasing intact.
+        For text that leans heavily on dashes and ellipses for effect, adding the
+        pause-smoothing evens out the rhythm. Because each is a toggle with its
+        own preview, there&rsquo;s no guesswork &mdash; turn one on, glance at the
+        preview, and keep it if it helps. And since it all runs locally, trying
+        combinations costs nothing and sends nothing anywhere.
+      </p>
+
       <h2>Where AI comes in instead</h2>
       <p>
         Text prep fixes mechanical issues; it doesn&rsquo;t rewrite. If you want

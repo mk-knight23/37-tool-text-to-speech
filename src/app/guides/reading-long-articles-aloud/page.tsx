@@ -99,6 +99,29 @@ export default function Page() {
         turned off or cleared in Settings if you&rsquo;d rather not keep it.
       </p>
 
+      <h2>Listening while you do something else</h2>
+      <p>
+        The whole appeal of listening is that it frees your eyes and hands, so it
+        pairs naturally with chores, a walk, or a commute. A couple of things make
+        that work better. Set the speed a little lower than you would for focused
+        reading, because divided attention needs more slack. And accept that
+        you&rsquo;ll drift occasionally &mdash; that&rsquo;s what the left arrow is
+        for. Rather than fighting to catch every word first time, let it play and
+        rewind the bits that matter. For anything you need to absorb precisely, do
+        a second pass sitting down and following the highlight.
+      </p>
+
+      <h2>Working through a backlog</h2>
+      <p>
+        If saved articles pile up faster than you read them, the queue turns the
+        pile into a plan. Add several at the start of a session and let them play
+        through while you get on with something else; the ones you finish land in
+        your history, so you can see what you&rsquo;ve cleared and what&rsquo;s
+        left. It won&rsquo;t make the backlog shorter by magic, but listening
+        reclaims time you couldn&rsquo;t have spent reading &mdash; the minutes
+        where your eyes were busy but your ears were free.
+      </p>
+
       <h2>Keep it private</h2>
       <p>
         Because the reading is done by your browser, the articles you listen to

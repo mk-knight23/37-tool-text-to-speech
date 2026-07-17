@@ -101,6 +101,30 @@ export default function Page() {
         <li>Save your combination as a preset so it&rsquo;s one click next time.</li>
       </ul>
 
+      <h2>A dyslexia-friendly setup</h2>
+      <p>
+        For dyslexia, the combination that tends to help is hearing and seeing the
+        words at once. Turn the reading text up a size, keep the speed moderate,
+        and let the sentence highlight track along so your eyes are guided rather
+        than left to find their own way across the line. The Atkinson Hyperlegible
+        typeface is chosen partly because its letters are hard to confuse with one
+        another, which reduces the sort of misreads that slow you down. Following
+        the highlighted line while you listen takes the pressure off decoding
+        every word yourself, so more attention is left for the meaning.
+      </p>
+
+      <h2>Managing reading fatigue and eye strain</h2>
+      <p>
+        If reading tires you out or triggers headaches, listening lets you keep
+        going after your eyes have had enough. A practical pattern is to read on
+        screen while you&rsquo;re fresh and switch to listening &mdash; eyes closed
+        if you like &mdash; when strain sets in, using the highlight only
+        occasionally to check your place. The queue helps here too: line up what
+        you need to get through, then work at it in comfortable stretches rather
+        than one draining session. Dark mode and the reduced-motion behaviour both
+        cut down on visual load if bright screens or movement bother you.
+      </p>
+
       <p>
         And because the reading happens in your browser, none of the text you read
         &mdash; which might be personal &mdash; is sent anywhere. Accessibility and

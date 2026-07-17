@@ -108,6 +108,31 @@ export default function Page() {
         <a href="/use-cases/studying-from-pdfs">studying from PDFs</a>.
       </p>
 
+      <h2>Getting cleaner text from the source</h2>
+      <p>
+        A little care at the source saves editing later. If you can export or
+        &ldquo;print to PDF&rdquo; from the original document rather than using a
+        scanned copy, you&rsquo;ll get a clean text layer with sensible reading
+        order. If you&rsquo;re downloading a paper, the publisher&rsquo;s HTML
+        version often copies more cleanly than the PDF, in which case pasting the
+        text directly skips extraction entirely. And if a PDF is a mix &mdash;
+        some real text, some scanned pages &mdash; only the real-text parts will
+        come through, so check that you got the sections you actually need.
+      </p>
+
+      <h2>Tables, figures and references</h2>
+      <p>
+        Some parts of a document don&rsquo;t translate to listening at all. A
+        table read aloud becomes a stream of disconnected numbers; a figure is
+        just its caption; a reference list is a wall of names and years. For most
+        listening you&rsquo;ll want to delete these from the extracted text before
+        playing, and keep the prose that actually carries the argument. If a table
+        genuinely matters, it&rsquo;s usually worth reading on screen rather than
+        by ear. Trimming this material also makes the{" "}
+        <a href="/guides/building-a-listening-queue">queue</a> cleaner if
+        you&rsquo;re splitting a long document into sections.
+      </p>
+
       <h2>The honest boundary</h2>
       <p>
         MK VoiceKit reads the PDF to you; it can&rsquo;t save that reading as an

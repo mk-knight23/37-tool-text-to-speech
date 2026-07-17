@@ -124,6 +124,31 @@ export default function Page() {
         <a href="/use-cases/language-learning-with-subtitles">language learning with subtitles</a>.
       </p>
 
+      <h2>Does the format matter: .srt or .vtt?</h2>
+      <p>
+        For listening, the difference between SubRip (<code>.srt</code>) and
+        WebVTT (<code>.vtt</code>) barely matters &mdash; both carry the same
+        dialogue, and MK VoiceKit strips the scaffolding from each. WebVTT is the
+        format browsers use natively for web video, so it can include styling and
+        positioning cues that SubRip doesn&rsquo;t; those are removed along with
+        everything else. If you have a choice, either works. If a file
+        won&rsquo;t import, check that it&rsquo;s genuinely a subtitle file and
+        not, say, a renamed document &mdash; the parser expects the cue-and-timing
+        structure these formats use.
+      </p>
+
+      <h2>Where subtitle files come from</h2>
+      <p>
+        You often already have subtitle files without realising. Many talks and
+        lectures offer a transcript or caption download; language-course videos
+        frequently ship with subtitle files; and plenty of open educational
+        material includes them. Anywhere you can legitimately obtain the caption
+        file, you can turn it into listening practice or a read-through. Because
+        the file is parsed on your device and never uploaded, you can use whatever
+        you have the right to use, privately &mdash; a point worth remembering for
+        anything sensitive.
+      </p>
+
       <h2>What it doesn&rsquo;t do</h2>
       <p>
         MK VoiceKit reads the dialogue; it doesn&rsquo;t sync speech back to the

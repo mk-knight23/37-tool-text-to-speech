@@ -105,6 +105,32 @@ export default function Page() {
         as an option and clearly not promised.
       </p>
 
+      <h2>What tools that &ldquo;export&rdquo; are actually doing</h2>
+      <p>
+        If you&rsquo;ve seen other browser tools offer an audio download, one of
+        two things is usually happening. Either they&rsquo;re not using the
+        browser speech engine at all &mdash; they send your text to a paid
+        server-side voice service that returns a real audio file, which is a
+        genuinely different product with genuinely different costs and privacy
+        implications &mdash; or they&rsquo;re capturing your system&rsquo;s audio
+        output with a screen-recording permission, which produces a rough
+        recording of whatever your speakers are playing rather than a clean track.
+        Neither is a free capability the browser hands out; both come with strings
+        attached that are easy to miss. MK VoiceKit doesn&rsquo;t hide those
+        strings behind a button.
+      </p>
+
+      <h2>If you only need it once</h2>
+      <p>
+        Occasionally people want a one-off recording &mdash; a single narration to
+        drop into a video, say. For that, a dedicated text-to-speech service that
+        produces audio files is the right tool, and there are good ones. MK
+        VoiceKit is honest about being the wrong tool for that specific job. What
+        it&rsquo;s good at is the everyday listening most people actually want:
+        reading, studying, proofreading and previewing, where you listen live and
+        never needed a file in the first place.
+      </p>
+
       <h2>How to work with the limit today</h2>
       <p>
         For the things most people actually want &mdash; listening to an article,

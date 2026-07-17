@@ -118,6 +118,33 @@ export default function Page() {
         </li>
       </ul>
 
+      <h2>A session, start to finish</h2>
+      <p>
+        Here&rsquo;s what a real queue session looks like. Say you&rsquo;ve got a
+        long report to get through. You split it into its five sections, add each
+        one, and end up with a queue of five items in reading order. You pick a
+        clear voice, set the speed a touch below conversational, and save that as
+        a preset so the whole session sounds consistent. You press play on the
+        first item and follow the highlighted sentence while it reads; when it
+        finishes, the second item starts on its own. Halfway through you get
+        interrupted, so you stop &mdash; and because the queue is stored on your
+        device, it&rsquo;s waiting exactly as you left it when you come back an
+        hour later. You reload the item you were on from history, and carry on
+        down the queue. No re-pasting, no losing your place.
+      </p>
+
+      <h2>Reordering without a mouse</h2>
+      <p>
+        The keyboard reordering deserves a closer look, because it&rsquo;s what
+        makes the queue usable for everyone. Focus an item&rsquo;s move control
+        and use the up and down keys with the modifier to shift it through the
+        list; the order updates and is saved immediately. This isn&rsquo;t a
+        second-class fallback bolted on after the drag handles &mdash; it&rsquo;s
+        a first-class way to reorder, so the queue never depends on precise mouse
+        dragging. That matters if a mouse is awkward for you, or if you simply
+        prefer to keep your hands on the keyboard while you work.
+      </p>
+
       <h2>The one boundary</h2>
       <p>
         The queue plays your sections in sequence within MK VoiceKit; it

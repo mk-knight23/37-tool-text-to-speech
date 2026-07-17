@@ -114,6 +114,30 @@ export default function Page() {
         word on pronunciation.
       </p>
 
+      <h2>Choosing material at the right level</h2>
+      <p>
+        The best practice material is a little above where you are now &mdash;
+        challenging enough to teach you something, not so hard that every line
+        needs decoding. Dialogue from something you&rsquo;ve already watched is
+        ideal, because you know the gist and can focus on how things are said. If
+        a passage is too advanced, the optional AI simplify tool can bring it down
+        a level so you can work up to the original; if it&rsquo;s too easy, push
+        the speed toward natural pace to build listening stamina. Start with short
+        clips and lengthen them as your ear improves.
+      </p>
+
+      <h2>A simple weekly routine</h2>
+      <p>
+        A routine turns scattered practice into progress. One approach: pick a few
+        minutes of dialogue, listen through once at slow speed for the gist, then
+        again while reading the highlighted lines, then a third time shadowing out
+        loud. Do that most days with fresh material, and revisit the previous
+        day&rsquo;s clip from your history as a warm-up. Because everything you
+        play is saved locally, you can build a small rotation of clips to cycle
+        through without hunting for them each time. Consistency beats marathon
+        sessions here &mdash; short, regular reps are what train the ear.
+      </p>
+
       <p>
         Because the file is parsed in your browser and never uploaded, you can
         practise with whatever material you have to hand, privately.

@@ -126,6 +126,34 @@ export default function Page() {
         random. Pick a replacement voice and re-save, and you&rsquo;re set.
       </p>
 
+      <h2>Local versus network voices in practice</h2>
+      <p>
+        The local badge is worth understanding, because it affects both how a
+        voice sounds and whether it works at all offline. Local voices are
+        installed on your device and run there; they&rsquo;re instant, they keep
+        working with no connection, and they sound the same every time. Some
+        browsers also expose higher-quality voices that are synthesised on a
+        remote server &mdash; these can sound noticeably more natural, but they
+        need a connection and send the text to that provider to be spoken. For
+        long, uninterrupted listening &mdash; a commute, a flight, anywhere your
+        connection is patchy &mdash; a local voice is the safer choice. For a
+        short passage where you want the best possible quality and don&rsquo;t
+        mind the trade-off, a network voice can be worth it. MK VoiceKit shows the
+        badge so the decision is yours rather than a surprise.
+      </p>
+
+      <h2>Matching the voice to the material</h2>
+      <p>
+        The best voice depends on what you&rsquo;re listening to. For dense,
+        technical text you want maximum clarity, even if the voice is a little
+        plain. For a long article you&rsquo;ll listen to end to end, naturalness
+        matters more, since a flat voice becomes tiring. For proofreading your own
+        writing, a neutral, unremarkable voice is ideal &mdash; you want to notice
+        the words, not the delivery. It&rsquo;s perfectly reasonable to keep two
+        or three presets for different jobs rather than hunting for one voice that
+        does everything.
+      </p>
+
       <h2>What to do with an empty list</h2>
       <p>
         If the picker is empty, give it a moment &mdash; some browsers load voices

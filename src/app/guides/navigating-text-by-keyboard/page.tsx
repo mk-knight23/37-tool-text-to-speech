@@ -110,6 +110,32 @@ export default function Page() {
         open, closes on Escape, and returns focus to where you were.
       </p>
 
+      <h2>A quick way to build the habit</h2>
+      <p>
+        The shortcuts pay off fast once they&rsquo;re in your fingers. A simple
+        way to get there: for your first few sessions, deliberately keep your
+        hand off the mouse. Paste some text, press Space to start, and use only
+        the arrows to move around. Tap left when you miss something, Shift+left to
+        jump back a paragraph, and the up and down arrows to find a comfortable
+        speed. Within a session or two the four core keys &mdash; Space, Escape,
+        and the two arrows &mdash; become automatic, and everything else builds on
+        those.
+      </p>
+
+      <h2>Why this matters beyond convenience</h2>
+      <p>
+        For a lot of people, keyboard operation isn&rsquo;t a preference &mdash;
+        it&rsquo;s the only comfortable way to use a computer. Someone with a
+        tremor, limited fine motor control, or a repetitive-strain injury may find
+        precise clicking painful or impossible. Building every feature to work
+        from the keyboard, and never hiding one behind a mouse-only gesture, is
+        what makes the tool usable for them rather than almost-usable. It&rsquo;s
+        also simply faster for anyone once the keys are learned, which is why the
+        same design serves both groups. The{" "}
+        <a href="/use-cases/accessible-reading">accessible reading</a> page covers
+        the wider picture.
+      </p>
+
       <h2>Everything is reachable and visible</h2>
       <p>
         Focus order follows the visual layout, so tabbing moves through the page

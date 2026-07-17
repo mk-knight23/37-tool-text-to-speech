@@ -96,6 +96,29 @@ export default function Page() {
         <a href="/guides/why-no-mp3-export">why there&rsquo;s no MP3 download</a>.
       </p>
 
+      <h2>Getting a rough sense of length</h2>
+      <p>
+        Scripts are notoriously hard to judge for length on the page. Playing the
+        whole thing through at the speed you actually talk gives you a rough
+        runtime &mdash; not exact, since your real delivery has pauses and asides a
+        synthetic voice skips, but close enough to know whether a segment is
+        running long before you commit it to a take. If an intro that looked tight
+        drags for two minutes when spoken, you&rsquo;ll hear it and can trim. This
+        is far cheaper than discovering the problem after you&rsquo;ve recorded.
+      </p>
+
+      <h2>A quick pre-record pass</h2>
+      <p>
+        Before you sit down to record, one listen-through catches the things that
+        trip up a take: the sentence that&rsquo;s too long to say in one breath,
+        the phrase that&rsquo;s a tongue-twister, the transition that lands
+        awkwardly, the name you&rsquo;re not sure how to pronounce. Fix them in the
+        text while they&rsquo;re still just text. If a particular word keeps
+        catching you, the pronunciation tool can suggest a respelling, and you can
+        note it in the script. Walk in with a script you&rsquo;ve already heard,
+        and the recording goes faster with fewer retakes.
+      </p>
+
       <p>
         Used for what it&rsquo;s good at &mdash; catching the awkward lines and
         pacing problems before you hit record &mdash; it saves a lot of wasted
