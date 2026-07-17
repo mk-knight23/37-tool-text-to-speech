@@ -8,7 +8,14 @@ import {
   ImportError,
   type ImportResult,
 } from "@/lib/parsers/file";
+import { track } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
+
+/** File extension (lowercase, no dot) — a feature name, never the file name. */
+function fileExt(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "unknown";
+}
 
 interface ImportDropzoneProps {
   onImported: (result: ImportResult) => void;
@@ -24,6 +31,8 @@ export function ImportDropzone({ onImported }: ImportDropzoneProps) {
     if (!file) return;
     setBusy(true);
     setError(null);
+    // Feature name + bucketed size only — never the file name or its contents.
+    track("file_selected", { ext: fileExt(file.name) });
     try {
       const result = await importFile(file);
       onImported(result);

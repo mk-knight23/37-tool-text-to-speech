@@ -17,6 +17,7 @@ import {
   GTM_ID,
   getConsent,
   setConsent,
+  track,
   type ConsentState,
 } from "@/lib/analytics";
 import { usePrefs } from "@/hooks/usePrefs";
@@ -133,7 +134,10 @@ export function SettingsView() {
                 type="button"
                 role="radio"
                 aria-checked={prefs.textScale === size}
-                onClick={() => update({ textScale: size })}
+                onClick={() => {
+                  update({ textScale: size });
+                  track("settings_changed", { setting: "text_scale" });
+                }}
                 className={cn(
                   "min-h-9 rounded-sm px-3 text-sm font-bold capitalize",
                   prefs.textScale === size
@@ -198,7 +202,10 @@ export function SettingsView() {
           label="Auto-scroll the transcript"
           hint="Keeps the sentence being read in view."
           checked={prefs.autoScroll}
-          onChange={(value) => update({ autoScroll: value })}
+          onChange={(value) => {
+            update({ autoScroll: value });
+            track("settings_changed", { setting: "auto_scroll" });
+          }}
         />
       </Section>
 
@@ -208,7 +215,10 @@ export function SettingsView() {
           label="Save history"
           hint="When off, played text is not recorded on this device."
           checked={prefs.historyEnabled}
-          onChange={(value) => update({ historyEnabled: value })}
+          onChange={(value) => {
+            update({ historyEnabled: value });
+            track("settings_changed", { setting: "history_enabled" });
+          }}
         />
         <Field label="Analytics">
           {GTM_ID ? (
@@ -226,6 +236,7 @@ export function SettingsView() {
                   onClick={() => {
                     setConsent(state);
                     setConsentState(state);
+                    track("settings_changed", { setting: "analytics_consent" });
                   }}
                   className={cn(
                     "min-h-9 rounded-sm px-3 text-sm font-bold",

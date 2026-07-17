@@ -13,6 +13,7 @@ import {
 } from "@/lib/storage";
 import { formatDuration, formatRelativeTime } from "@/lib/format";
 import { stashTextForWorkspace } from "@/lib/handoff";
+import { track } from "@/lib/analytics";
 import { Button } from "@/components/ui/Button";
 
 const UNDO_MS = 6000;
@@ -26,6 +27,7 @@ export function HistoryView() {
 
   useEffect(() => {
     void listHistory().then(setEntries);
+    track("history_opened");
     return () => {
       if (undoTimer.current) clearTimeout(undoTimer.current);
     };

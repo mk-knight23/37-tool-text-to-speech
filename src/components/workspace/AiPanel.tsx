@@ -184,6 +184,7 @@ export function AiPanel({ sourceText, onUseText }: AiPanelProps) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      track("result_copied", { capability: resultMeta?.id ?? "unknown" });
       setTimeout(() => setCopied(false), 1500);
     } catch {
       // Clipboard blocked — no-op; the text is still visible to select.
