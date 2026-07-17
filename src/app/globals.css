@@ -1,26 +1,243 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* fonts */
+  --font-sans: "Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  /* light theme (default) */
+  --color-bg: #FAF9F7;
+  --color-surface: #FFFFFF;
+  --color-surface-sunken: #F1EFEA;
+  --color-surface-raised: #FFFFFF;
+  --color-text: #1F2933;
+  --color-text-muted: #52616B;
+  --color-primary: #0F766E;
+  --color-primary-hover: #115E59;
+  --color-primary-soft: #CCFBF1;
+  --color-on-primary: #FFFFFF;
+  --color-accent: #B45309;
+  --color-accent-soft: #FDE68A;
+  --color-danger: #B91C1C;
+  --color-success: #15803D;
+  --color-border: #D8D2C6;
+  --color-border-strong: #667085;
+  --color-focus: #0F766E;
+
+  /* radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* elevation */
+  --shadow-1: 0 1px 2px rgb(28 43 51 / 0.06);
+  --shadow-2: 0 2px 8px rgb(28 43 51 / 0.08), 0 1px 2px rgb(28 43 51 / 0.05);
+  --shadow-3: 0 8px 24px rgb(28 43 51 / 0.12);
+
+  /* motion */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* dark theme: class strategy on <html> (theme store: light/dark/system) */
+.dark {
+  --color-bg: #0B1519;
+  --color-surface: #102028;
+  --color-surface-sunken: #0D1A20;
+  --color-surface-raised: #162B34;
+  --color-text: #E8F1F2;
+  --color-text-muted: #9FB6BC;
+  --color-primary: #2DD4BF;
+  --color-primary-hover: #5EEAD4;
+  --color-primary-soft: #134E4A;
+  --color-on-primary: #0B1519;
+  --color-accent: #FBBF24;
+  --color-accent-soft: #4A3A10;
+  --color-danger: #F87171;
+  --color-success: #4ADE80;
+  --color-border: #2A4854;
+  --color-border-strong: #63808C;
+  --color-focus: #2DD4BF;
+  --shadow-1: none;
+  --shadow-2: 0 0 0 1px rgb(42 72 84 / 0.6);
+  --shadow-3: 0 8px 24px rgb(0 0 0 / 0.5);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ---------------------------------------------------------------- */
+/* Base layer                                                        */
+/* ---------------------------------------------------------------- */
+
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-height: 100dvh;
+    line-height: 1.6;
+  }
+
+  /* Focus ring: 2px solid, 2px offset, never removed (DESIGN_SYSTEM §6) */
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background-color: var(--color-primary-soft);
+  }
+}
+
+/* Skip link: first focusable element, visible on focus */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 70;
+  padding: 12px 20px;
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-md);
+  font-weight: 700;
+}
+.skip-link:focus-visible {
+  top: 16px;
+}
+
+/* Restyled range inputs (rate/pitch/volume): 32px thumb in a 44px hit area */
+input[type="range"].vk-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"].vk-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-border-strong);
+}
+input[type="range"].vk-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-border-strong);
+}
+input[type="range"].vk-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  margin-top: -13px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  border: 2px solid var(--color-surface);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-1);
+}
+input[type="range"].vk-slider::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  border: 2px solid var(--color-surface);
+  background: var(--color-primary);
+}
+input[type="range"].vk-slider:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Waveform speaking indicator: animates ONLY while speech is playing */
+@keyframes vk-wave {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+.vk-wave-bar {
+  transform-origin: center;
+  transform: scaleY(0.35);
+}
+.vk-wave--playing .vk-wave-bar {
+  animation: vk-wave 900ms var(--ease-out) infinite;
+}
+.vk-wave--playing .vk-wave-bar:nth-child(2) { animation-delay: 120ms; }
+.vk-wave--playing .vk-wave-bar:nth-child(3) { animation-delay: 240ms; }
+.vk-wave--playing .vk-wave-bar:nth-child(4) { animation-delay: 360ms; }
+.vk-wave--playing .vk-wave-bar:nth-child(5) { animation-delay: 480ms; }
+.vk-wave--paused .vk-wave-bar {
+  animation-play-state: paused;
+}
+
+/* Transcript highlighting (DESIGN_SYSTEM §5.3) */
+.vk-sentence {
+  border-left: 3px solid transparent;
+  transition: background-color var(--motion-base) var(--ease-out);
+}
+.vk-sentence[aria-current="true"] {
+  background-color: var(--color-primary-soft);
+  border-left-color: var(--color-primary);
+}
+.vk-word-live {
+  background-color: var(--color-accent-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* Playback bar glass — the ONLY glass surface in the product (§3) */
+.vk-playbar {
+  background-color: var(--color-surface-raised);
+}
+@supports (backdrop-filter: blur(12px)) {
+  .vk-playbar {
+    background-color: rgb(255 255 255 / 0.88);
+    backdrop-filter: blur(12px);
+  }
+  .dark .vk-playbar {
+    background-color: rgb(22 43 52 / 0.88);
+  }
+}
+@media (prefers-contrast: more) {
+  .vk-playbar {
+    background-color: var(--color-surface-raised) !important;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Landing hero: the single allowed gradient (≤8% opacity teal fade) */
+.vk-hero-fade {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(15 118 110 / 0.08),
+    transparent 70%
+  );
+}
+.dark .vk-hero-fade {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(45 212 191 / 0.08),
+    transparent 70%
+  );
+}
+
+/* Timecodes and numeric readouts never shift layout */
+.vk-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
