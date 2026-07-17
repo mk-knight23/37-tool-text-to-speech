@@ -250,10 +250,11 @@ export function SettingsView() {
       {/* BYOK */}
       <Section title="AI key (optional)">
         <p className="text-sm text-text-muted">
-          AI-assisted text tools are on the roadmap, not shipped in this
-          version. If you have a Vercel AI Gateway key you can store it here
-          now; it stays on this device and is only ever sent with a request you
-          start yourself — never logged or saved on a server.
+          The AI tools in the workspace (rewrite, summarise, translate, and
+          more) work without any setup, up to a small daily limit. To lift that
+          limit, paste your own Vercel AI Gateway key here. It stays on this
+          device, is sent only with a request you start yourself, and is never
+          logged or saved on a server. Clear the field and save to remove it.
         </p>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
           <input

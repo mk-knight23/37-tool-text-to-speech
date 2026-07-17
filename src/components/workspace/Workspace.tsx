@@ -36,6 +36,7 @@ import { PresetBar } from "./PresetBar";
 import { QueuePanel } from "./QueuePanel";
 import { ImportDropzone } from "./ImportDropzone";
 import { ShortcutsDialog } from "./ShortcutsDialog";
+import { AiPanel } from "./AiPanel";
 
 const CHAR_SOFT_LIMIT = 100_000;
 
@@ -331,6 +332,14 @@ export function Workspace() {
     engine.playSentence(index);
   };
 
+  const handleUseAiText = (text: string) => {
+    engine.stop();
+    setRawText(text);
+    setSourceLabel(null);
+    setActiveQueueId(null);
+    setNotice("Replaced your text with the AI result.");
+  };
+
   const availableVoiceURIs = useMemo(
     () => new Set(voices.map((voice) => voice.voiceURI)),
     [voices]
@@ -564,6 +573,8 @@ export function Workspace() {
           </div>
         </aside>
       </div>
+
+      <AiPanel sourceText={rawText} onUseText={handleUseAiText} />
 
       <ShortcutsDialog
         open={shortcutsOpen}
