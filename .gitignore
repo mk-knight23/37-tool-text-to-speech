@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# rebuild v2: legacy reference copies (local only, never committed)
+_legacy_reference/
