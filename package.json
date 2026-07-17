@@ -1,0 +1,47 @@
+{
+  "name": "mk-voicekit",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fontsource/atkinson-hyperlegible": "^5.2.8",
+    "idb": "^8.0.3",
+    "lucide-react": "^1.24.0",
+    "next": "16.2.10",
+    "pdfjs-dist": "^6.1.200",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "jsdom": "^29.1.1",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  },
+  "description": "MK VoiceKit — a free, local-first browser text-to-speech workspace.",
+  "author": "Kazi Musharraf <https://www.mkazi.live>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mk-knight23/37-tool-text-to-speech"
+  },
+  "homepage": "https://voicekit.mkazi.live"
+}
