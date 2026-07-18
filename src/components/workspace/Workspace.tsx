@@ -359,7 +359,7 @@ export function Workspace() {
   }, [snapshot.status, snapshot.sentenceIndex, segmentation.sentences]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6">
+    <div className="mx-auto max-w-6xl overflow-x-clip px-4 py-6">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold sm:text-3xl">Workspace</h1>
