@@ -16,16 +16,16 @@ test("mobile menu opens and navigates to the workspace", async ({ page }) => {
 
   await mobileNav.getByRole("link", { name: "Workspace" }).click();
 
-  await expect(page).toHaveURL(/\/tool$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", { name: "Workspace", level: 1 })
+    page.getByRole("heading", { name: "Voice Workspace", level: 1 })
   ).toBeVisible();
 });
 
 test("workspace accepts text at a mobile width", async ({ page }) => {
-  await page.goto("/tool");
+  await page.goto("/");
 
-  await page.getByLabel("Your text").fill("A short sentence for mobile.");
+  await page.getByLabel("Text to read aloud").fill("A short sentence for mobile.");
 
   await expect(
     page.getByRole("button", { name: /Speak from: A short sentence/ })

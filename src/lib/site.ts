@@ -36,10 +36,15 @@ export interface NavLink {
 
 /** Header navigation — the core app surfaces plus the content hubs. */
 export const PRIMARY_NAV: NavLink[] = [
-  { href: "/tool", label: "Workspace" },
+  { href: "/", label: "Workspace" },
   { href: "/guides", label: "Guides" },
   { href: "/docs", label: "Docs" },
+];
+
+export const SECONDARY_NAV: NavLink[] = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/history", label: "History" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export interface FooterSection {

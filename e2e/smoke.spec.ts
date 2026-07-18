@@ -26,16 +26,16 @@ test("landing page shows the honest footer and links to the workspace", async ({
     name: "Workspace",
   }).click();
 
-  await expect(page).toHaveURL(/\/tool$/);
-  await expect(page.getByRole("heading", { name: "Workspace", level: 1 })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "Voice Workspace", level: 1 })).toBeVisible();
 });
 
 test("typing text segments it into the transcript with a live character count", async ({
   page,
 }) => {
-  await page.goto("/tool");
+  await page.goto("/");
 
-  const textarea = page.getByLabel("Your text");
+  const textarea = page.getByLabel("Text to read aloud");
   await textarea.fill(SAMPLE);
 
   // Each sentence becomes a "Speak from:" button in the transcript. (Intl.Segmenter
@@ -57,13 +57,16 @@ test("typing text segments it into the transcript with a live character count", 
 test("local text-prep rewrites the transcript deterministically (not AI)", async ({
   page,
 }) => {
-  await page.goto("/tool");
-  await page.getByLabel("Your text").fill(SAMPLE);
+  await page.goto("/");
+  await page.getByLabel("Text to read aloud").fill(SAMPLE);
 
   // Baseline: raw digits/abbreviations are present.
   await expect(
     page.getByRole("button", { name: /Speak from: I have 3 cats/ })
   ).toBeVisible();
+
+  // Expand advanced options first
+  await page.getByRole("button", { name: "Advanced reader options, files & tools" }).click();
 
   await page.getByRole("checkbox", { name: "Expand numbers" }).check();
   await page.getByRole("checkbox", { name: "Expand abbreviations" }).check();
@@ -80,11 +83,14 @@ test("local text-prep rewrites the transcript deterministically (not AI)", async
 test("keyboard pass: arrow adjusts speed and '?' opens the shortcuts dialog", async ({
   page,
 }) => {
-  await page.goto("/tool");
-  await page.getByLabel("Your text").fill(SAMPLE);
+  await page.goto("/");
+  await page.getByLabel("Text to read aloud").fill(SAMPLE);
 
-  // Move focus out of the textarea so global shortcuts are active.
-  await page.getByRole("heading", { name: "Workspace", level: 1 }).click();
+  // Focus is on body, but speed slider is inside advanced setting. Let's expand first.
+  await page.getByRole("button", { name: "Advanced reader options, files & tools" }).click();
+
+  // Move focus out of the button so global shortcuts are active.
+  await page.getByRole("heading", { name: "Voice Workspace", level: 1 }).click();
 
   // ArrowUp nudges the speed from 1.0× to 1.1× (deterministic, no voice needed).
   await expect(page.getByText("1.0×")).toBeVisible();

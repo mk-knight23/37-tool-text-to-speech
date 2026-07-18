@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard } from "lucide-react";
+import { Keyboard, Settings } from "lucide-react";
 import { useSpeechEngine } from "@/hooks/useSpeechEngine";
 import { useVoices } from "@/hooks/useVoices";
 import { usePrefs } from "@/hooks/usePrefs";
@@ -60,7 +60,8 @@ export function Workspace() {
   const { voices, loading: voicesLoading, supported, reload } = useVoices();
   const { prefs, loaded: prefsLoaded, update: updatePrefs } = usePrefs();
 
-  const [rawText, setRawText] = useState("");
+  // Load initial welcome message text to ensure visitor gets an immediate outcome
+  const [rawText, setRawText] = useState("Welcome to MK VoiceKit. Type or paste your text here, or use the advanced options to drop a PDF or subtitle file, then press Play below.");
   const [sourceLabel, setSourceLabel] = useState<string | null>(null);
   const [selectedURI, setSelectedURI] = useState<string | null>(null);
   const [rate, setRate] = useState(1);
@@ -76,6 +77,9 @@ export function Workspace() {
   const [activeQueueId, setActiveQueueId] = useState<string | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Advanced toggler
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const sessionCounted = useRef(false);
 
@@ -359,21 +363,22 @@ export function Workspace() {
   }, [snapshot.status, snapshot.sentenceIndex, segmentation.sentences]);
 
   return (
-    <div className="mx-auto max-w-6xl overflow-x-clip px-4 py-6">
-      <div className="mb-4 flex items-center justify-between gap-4">
+    <div className="mx-auto max-w-4xl overflow-x-clip px-4 py-6">
+      <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">Workspace</h1>
-          <p className="text-text-muted">
-            Paste or import text, choose a voice, and listen.
+          <h1 className="text-2xl font-bold sm:text-3xl">Voice Workspace</h1>
+          <p className="text-text-muted text-sm sm:text-base">
+            Type or paste text, pick a voice, and start reading.
           </p>
         </div>
         <Button
           variant="secondary"
           size="sm"
           onClick={() => setShortcutsOpen(true)}
+          className="cursor-pointer"
         >
           <Keyboard className="size-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Shortcuts</span>
+          <span className="hidden sm:inline">Keyboard shortcuts</span>
         </Button>
       </div>
 
@@ -396,11 +401,12 @@ export function Workspace() {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <label htmlFor="source-text" className="font-bold">
-              Your text
+      <div className="flex flex-col gap-6">
+        {/* Core Layout: Input and playback */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 bg-surface border border-border p-4 rounded-xl shadow-sm">
+            <label htmlFor="source-text" className="font-semibold text-sm">
+              Text to read aloud
             </label>
             <textarea
               id="source-text"
@@ -410,11 +416,11 @@ export function Workspace() {
                 setSourceLabel(null);
                 setActiveQueueId(null);
               }}
-              rows={6}
-              placeholder="Paste or type text here, or import a file below…"
-              className="w-full resize-y rounded-lg border border-border-strong bg-surface p-3 text-base"
+              rows={8}
+              placeholder="Paste or type text here…"
+              className="w-full resize-y rounded-lg border border-border bg-surface p-3 text-base"
             />
-            <div className="flex items-center justify-between text-sm text-text-muted">
+            <div className="flex items-center justify-between text-xs text-text-muted">
               <span className={overLimit ? "text-danger" : undefined}>
                 {rawText.length.toLocaleString()} characters
                 {overLimit ? " — very long text may be slow" : ""}
@@ -428,7 +434,7 @@ export function Workspace() {
                     setSourceLabel(null);
                     setActiveQueueId(null);
                   }}
-                  className="hover:text-danger"
+                  className="hover:text-danger cursor-pointer"
                 >
                   Clear text
                 </button>
@@ -436,24 +442,39 @@ export function Workspace() {
             </div>
           </div>
 
-          <ImportDropzone onImported={handleImported} />
-
-          <section
-            aria-label="Transcript"
-            className="rounded-xl border border-border bg-surface p-4"
-          >
-            <Transcript
-              sentences={segmentation.sentences}
-              activeIndex={snapshot.sentenceIndex}
-              wordRange={snapshot.wordRange}
-              hasWordBoundaries={snapshot.hasWordBoundaries}
-              autoScroll={prefs.autoScroll}
-              textScale={prefs.textScale}
-              lang={selectedVoice?.lang}
-              onPlaySentence={handlePlaySentence}
+          {/* Voice Picker (always visible in Basic Mode) */}
+          <div className="bg-surface border border-border p-4 rounded-xl shadow-sm">
+            <h2 className="mb-3 font-semibold text-sm">Select Reader Voice</h2>
+            <VoicePicker
+              voices={voices}
+              loading={voicesLoading}
+              supported={supported}
+              selectedURI={selectedURI}
+              onSelect={handleSelectVoice}
+              onReload={reload}
             />
-          </section>
+          </div>
 
+          {/* Playback Progress Highlights */}
+          {hasText && (
+            <section
+              aria-label="Transcript"
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+            >
+              <Transcript
+                sentences={segmentation.sentences}
+                activeIndex={snapshot.sentenceIndex}
+                wordRange={snapshot.wordRange}
+                hasWordBoundaries={snapshot.hasWordBoundaries}
+                autoScroll={prefs.autoScroll}
+                textScale={prefs.textScale}
+                lang={selectedVoice?.lang}
+                onPlaySentence={handlePlaySentence}
+              />
+            </section>
+          )}
+
+          {/* Playback Controls (always visible in Basic Mode) */}
           <PlaybackBar
             status={snapshot.status}
             sentenceIndex={snapshot.sentenceIndex}
@@ -476,105 +497,127 @@ export function Workspace() {
           />
         </div>
 
-        <aside className="flex flex-col gap-6">
-          <section
-            aria-labelledby="voice-heading"
-            className="rounded-xl border border-border bg-surface p-4"
+        {/* Advanced customization toggle */}
+        <div className="border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-2 text-xs font-bold text-text-muted hover:text-text transition-colors cursor-pointer"
           >
-            <h2 id="voice-heading" className="mb-3 font-bold">
-              Voice
-            </h2>
-            <VoicePicker
-              voices={voices}
-              loading={voicesLoading}
-              supported={supported}
-              selectedURI={selectedURI}
-              onSelect={handleSelectVoice}
-              onReload={reload}
-            />
-          </section>
+            <Settings size={14} className="text-text-muted" />
+            <span>Advanced reader options, files & tools</span>
+            {showAdvanced ? "▲" : "▼"}
+          </button>
 
-          <section
-            aria-label="Playback settings"
-            className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4"
-          >
-            <Slider
-              id="rate"
-              label="Speed"
-              min={0.5}
-              max={3}
-              step={0.1}
-              largeStep={0.5}
-              value={rate}
-              defaultValue={prefs.defaultRate}
-              onChange={setRate}
-              format={(v) => `${v.toFixed(1)}×`}
-              formatAria={(v) => `${v.toFixed(1)} times speed`}
-            />
-            <Slider
-              id="pitch"
-              label="Pitch"
-              min={0.5}
-              max={2}
-              step={0.1}
-              largeStep={0.5}
-              value={pitch}
-              defaultValue={prefs.defaultPitch}
-              onChange={setPitch}
-              format={(v) => v.toFixed(1)}
-              formatAria={(v) => `pitch ${v.toFixed(1)}`}
-            />
-            <Slider
-              id="volume"
-              label="Volume"
-              min={0}
-              max={1}
-              step={0.05}
-              largeStep={0.2}
-              value={volume}
-              defaultValue={prefs.defaultVolume}
-              onChange={setVolume}
-              format={(v) => `${Math.round(v * 100)}%`}
-              formatAria={(v) => `volume ${Math.round(v * 100)} percent`}
-            />
-          </section>
+          {showAdvanced && (
+            <div className="mt-4 grid gap-6 md:grid-cols-2 animate-fade-in border border-border p-5 rounded-xl bg-surface-sunken">
+              <div className="flex flex-col gap-6">
+                {/* File Dropzone */}
+                <div className="bg-surface border border-border p-4 rounded-xl shadow-sm">
+                  <h3 className="mb-2 font-semibold text-sm">Import Documents</h3>
+                  <p className="text-xs text-text-muted mb-3">Upload PDF, text, or subtitle files to speak.</p>
+                  <ImportDropzone onImported={handleImported} />
+                </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <TextPrepPanel
-              prep={prep}
-              onChange={handlePrepChange}
-              sampleText={rawText}
-            />
-          </div>
+                {/* Speech Configuration Sliders */}
+                <section
+                  aria-label="Playback settings"
+                  className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 shadow-sm"
+                >
+                  <h3 className="font-semibold text-sm">Voice Modulation</h3>
+                  <Slider
+                    id="rate"
+                    label="Speed"
+                    min={0.5}
+                    max={3}
+                    step={0.1}
+                    largeStep={0.5}
+                    value={rate}
+                    defaultValue={prefs.defaultRate}
+                    onChange={setRate}
+                    format={(v) => `${v.toFixed(1)}×`}
+                    formatAria={(v) => `${v.toFixed(1)} times speed`}
+                  />
+                  <Slider
+                    id="pitch"
+                    label="Pitch"
+                    min={0.5}
+                    max={2}
+                    step={0.1}
+                    largeStep={0.5}
+                    value={pitch}
+                    defaultValue={prefs.defaultPitch}
+                    onChange={setPitch}
+                    format={(v) => v.toFixed(1)}
+                    formatAria={(v) => `pitch ${v.toFixed(1)}`}
+                  />
+                  <Slider
+                    id="volume"
+                    label="Volume"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    largeStep={0.2}
+                    value={volume}
+                    defaultValue={prefs.defaultVolume}
+                    onChange={setVolume}
+                    format={(v) => `${Math.round(v * 100)}%`}
+                    formatAria={(v) => `volume ${Math.round(v * 100)} percent`}
+                  />
+                </section>
+              </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <PresetBar
-              presets={presets}
-              availableVoiceURIs={availableVoiceURIs}
-              canSave={selectedVoice !== null || voices.length === 0}
-              onApply={handleApplyPreset}
-              onSave={handleSavePreset}
-              onRename={handleRenamePreset}
-              onDelete={handleDeletePreset}
-            />
-          </div>
+              <div className="flex flex-col gap-6">
+                {/* Text Preparation Replacements */}
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <h3 className="font-semibold text-sm mb-3">Text Normalization</h3>
+                  <TextPrepPanel
+                    prep={prep}
+                    onChange={handlePrepChange}
+                    sampleText={rawText}
+                  />
+                </div>
 
-          <div className="rounded-xl border border-border bg-surface p-4">
-            <QueuePanel
-              items={queue}
-              activeId={activeQueueId}
-              canAdd={rawText.trim().length > 0}
-              onAddCurrent={handleAddToQueue}
-              onLoad={handleLoadQueue}
-              onRemove={handleRemoveQueue}
-              onMove={handleMoveQueue}
-              onClear={handleClearQueue}
-            />
-          </div>
-        </aside>
+                {/* Preset Voice Savings */}
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <h3 className="font-semibold text-sm mb-3">Preset Profiles</h3>
+                  <PresetBar
+                    presets={presets}
+                    availableVoiceURIs={availableVoiceURIs}
+                    canSave={selectedVoice !== null || voices.length === 0}
+                    onApply={handleApplyPreset}
+                    onSave={handleSavePreset}
+                    onRename={handleRenamePreset}
+                    onDelete={handleDeletePreset}
+                  />
+                </div>
+
+                {/* Playlist Queue */}
+                <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
+                  <h3 className="font-semibold text-sm mb-3">Audio Queue</h3>
+                  <QueuePanel
+                    items={queue}
+                    activeId={activeQueueId}
+                    canAdd={rawText.trim().length > 0}
+                    onAddCurrent={handleAddToQueue}
+                    onLoad={handleLoadQueue}
+                    onRemove={handleRemoveQueue}
+                    onMove={handleMoveQueue}
+                    onClear={handleClearQueue}
+                  />
+                </div>
+              </div>
+
+              {/* AI optimization panel */}
+              <div className="col-span-1 md:col-span-2 rounded-xl border border-border bg-surface p-4 shadow-sm">
+                <h3 className="font-semibold text-sm mb-2">AI Prep Toolkit</h3>
+                <p className="text-xs text-text-muted mb-4">Fix errors, summarize, or translate before reading.</p>
+                <AiPanel sourceText={rawText} onUseText={handleUseAiText} />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-
-      <AiPanel sourceText={rawText} onUseText={handleUseAiText} />
 
       <ShortcutsDialog
         open={shortcutsOpen}

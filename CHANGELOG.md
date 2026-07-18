@@ -8,7 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Nothing yet.
+## [2.1.0] — 2026-07-18
+
+### Focused Product Transformation
+- **Homepage Integration**: Embedded the client-side `Workspace` directly on the homepage.
+- **Immediate Outcome Text**: Auto-filled the textarea with a welcome sentence to guide first-time visitors.
+- **Basic Mode Layout**: Simplified default view displaying only text input, voice picker, sentence highlights, and play controls.
+- **Collapsible Settings accordion**: Grouped secondary widgets (Import Dropzone, voice controls, Text Prep replacements, presets, queue, AI optimizing) inside a collapsible advanced section.
+- **Split navigation menu**: Separated header nav links into primary and secondary segments with a divider and included a link to the GitHub repository.
 
 ## [2.0.0] — 2026-07-18
 
