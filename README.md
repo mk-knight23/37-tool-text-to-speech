@@ -262,11 +262,6 @@ If MK VoiceKit graduates to its own domain, the candidate is **mkvoicekit.com**:
 3. Keep `voicekit.mkazi.live` attached and configure it to **redirect** to the
    new primary domain so existing links keep working.
 
-### Alternatives
-
-Netlify and Cloudflare Pages can both host a Next.js app and are viable, but
-Vercel is the supported path here.
-
 ## Roadmap
 
 Honest near-term items, nothing promised:
