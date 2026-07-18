@@ -45,4 +45,4 @@ Next.js workspace with a real test suite, CI, and complete documentation.
 - There is deliberately **no audio/MP3 export**: the browser speech engine
   provides no saveable audio file, and this is stated plainly rather than faked.
 - Analytics and ads are off by default; ads are prepared but disabled (see
-  `MONETIZATION_PLAN.md`).
+  `docs/MONETIZATION_PLAN.md`).

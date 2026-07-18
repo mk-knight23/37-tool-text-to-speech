@@ -5,7 +5,7 @@
  * per-instance (each warm lambda has its own bucket) and resets on cold start.
  * It smooths bursts from a single client; it is not a global guarantee. A
  * durable limiter (e.g. Upstash/Redis) would be needed for hard limits — see
- * SECURITY.md.
+ * docs/SECURITY.md.
  */
 
 export interface RateLimitConfig {

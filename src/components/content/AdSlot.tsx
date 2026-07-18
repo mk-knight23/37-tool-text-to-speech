@@ -9,7 +9,7 @@
  * pages. No real publisher id exists yet, so no ad markup is emitted even when
  * the flag is on; the slot only reserves fixed dimensions to avoid CLS.
  *
- * See MONETIZATION_PLAN.md for intended placements and the activation checklist.
+ * See docs/MONETIZATION_PLAN.md for intended placements and the activation checklist.
  */
 
 const ADSENSE_ENABLED = process.env.NEXT_PUBLIC_ADSENSE_ENABLED === "true";
