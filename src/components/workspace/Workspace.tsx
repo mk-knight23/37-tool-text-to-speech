@@ -396,8 +396,8 @@ export function Workspace() {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
-        <div className="flex flex-col gap-4">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col gap-2">
             <label htmlFor="source-text" className="font-bold">
               Your text
