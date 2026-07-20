@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-07-21
+
+### Added
+- **Voice Studio Workspace** (`/studio`): Bento-style vertical scene timeline editor, custom pause configuration, voice settings per scene, local IndexedDB project saving, and background music loops/volume controls with automatic speech volume ducking.
+- **AI BYOK Provider Relay Architecture**: Added a credentials settings manager in `/settings` to save OpenAI, ElevenLabs, Google Cloud TTS, Azure Speech, and Amazon Polly keys client-side; built dynamic server-side endpoint relays at `/api/ai/tts` matching a unified provider-neutral interface.
+- **Transcription & Dubbing Workspace** (`/transcribe`): Microphone recorder with visualizer waveforms, dual-path transcribing (native dictation + Whisper files relay at `/api/ai/transcribe`), dialogue segment editor (tags/timestamps/clean-ups), subtitles export, and translations dubbing scripts compiler.
+- **Document Reader Workspace** (`/reader`): Advanced EPUB, DOCX, and PDF text/layout parsing, Table of Contents drawer navigation, line height/margins/dyslexia-friendly settings, and reading progress preservation.
+- **Library Tagging & Central Hub** (`/library`): Centralized list directory for drafts, documents, and projects, tag search archives, and binary audio blobs storage.
+
 ## [2.1.0] — 2026-07-18
 
 ### Focused Product Transformation

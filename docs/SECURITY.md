@@ -31,7 +31,7 @@ database to breach). The remaining surface and how it is addressed:
 | **XSS** | Rendered content | React escaping; strict CSP in production; no `dangerouslySetInnerHTML` of untrusted input. |
 | **Clickjacking** | All routes | `frame-ancestors 'none'` + `X-Content-Type-Options: nosniff`. |
 | **Spoofing / MITM** | Transport | HSTS (2 years, `includeSubDomains; preload`); `upgrade-insecure-requests`. |
-| **Elevation via device APIs** | Browser features | `Permissions-Policy: camera=(), microphone=(), geolocation=()`. |
+| **Elevation via device APIs** | Browser features | `Permissions-Policy: camera=(), microphone=(self), geolocation=()`. |
 
 ## Security controls
 

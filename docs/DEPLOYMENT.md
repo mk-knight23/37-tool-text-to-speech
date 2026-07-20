@@ -10,7 +10,7 @@
 ## Prerequisites
 
 - Node 26, pnpm 11.
-- A Vercel project linked to `mk-knight23/37-tool-text-to-speech`.
+- A Vercel project linked to `mk-knight23/MK-VoiceKit`.
 - Framework preset: **Next.js** (auto-detected). No custom build settings needed.
 
 | Setting | Value |

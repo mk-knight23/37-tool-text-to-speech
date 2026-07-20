@@ -84,6 +84,8 @@ export const prefsSchema = z.object({
     expandAbbreviations: z.boolean(),
     normalizePauses: z.boolean(),
   }),
+  favoriteVoiceURIs: z.array(z.string()).default([]),
+  recentVoiceURIs: z.array(z.string()).default([]),
 });
 export type Prefs = z.infer<typeof prefsSchema>;
 
@@ -97,27 +99,88 @@ export const DEFAULT_PREFS: Prefs = {
   textScale: "base",
   autoScroll: true,
   prep: { ...DEFAULT_PREP_OPTIONS },
+  favoriteVoiceURIs: [],
+  recentVoiceURIs: [],
 };
+
+export const libraryItemSchema = z.object({
+  id: z.string(),
+  type: z.enum(["draft", "document", "project"]),
+  title: z.string().min(1).max(200),
+  content: z.string(),
+  rawContent: z.string().optional(),
+  fileName: z.string().nullable().optional(),
+  fileType: z.string().nullable().optional(),
+  progress: z.object({
+    sentenceIndex: z.number().int().nonnegative(),
+    scrollOffset: z.number().optional(),
+  }).optional(),
+  estimatedDurationMs: z.number().nonnegative().optional(),
+  headings: z.array(z.object({
+    title: z.string(),
+    charIndex: z.number().int().nonnegative(),
+    level: z.number().int().positive(),
+  })).optional(),
+  tags: z.array(z.string()).default([]),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  archived: z.boolean().default(false),
+  scenes: z.array(z.object({
+    id: z.string(),
+    text: z.string(),
+    voiceURI: z.string().nullable(),
+    rate: z.number(),
+    pitch: z.number(),
+    volume: z.number(),
+    pauseAfterSeconds: z.number(),
+  })).optional(),
+  backgroundMusic: z.object({
+    fileName: z.string(),
+    volume: z.number(),
+    duckPercent: z.number().default(50),
+    loop: z.boolean().default(true),
+    audioBlob: z.any().nullable().optional(),
+  }).nullable().optional(),
+});
+export type LibraryItem = z.infer<typeof libraryItemSchema>;
+
+export const generatedAudioSchema = z.object({
+  id: z.string(),
+  libraryId: z.string(),
+  audioBlob: z.any(),
+  voiceName: z.string(),
+  text: z.string(),
+  durationMs: z.number().nonnegative(),
+  createdAt: z.number(),
+});
+export type GeneratedAudio = z.infer<typeof generatedAudioSchema>;
 
 const exportSchema = z.object({
   product: z.literal("mk-voicekit"),
-  version: z.literal(1),
+  version: z.union([z.literal(1), z.literal(2)]),
   exportedAt: z.number(),
   prefs: prefsSchema,
   stats: statsSchema,
   history: z.array(historyEntrySchema),
   presets: z.array(presetSchema),
   queue: z.array(queueItemSchema),
+  library: z.array(libraryItemSchema).optional(),
 });
 export type ExportPayload = z.infer<typeof exportSchema>;
-
-/* ------------------------------------------------------------------ */
-/* Database                                                             */
-/* ------------------------------------------------------------------ */
 
 interface VoiceKitDB extends DBSchema {
   history: { key: string; value: HistoryEntry };
   presets: { key: string; value: Preset };
+  library: {
+    key: string;
+    value: LibraryItem;
+    indexes: { type: string; archived: string };
+  };
+  generated_audio: {
+    key: string;
+    value: GeneratedAudio;
+    indexes: { libraryId: string };
+  };
   kv: { key: string; value: unknown };
 }
 
@@ -131,11 +194,21 @@ function getDB(): Promise<IDBPDatabase<VoiceKitDB>> {
     return Promise.reject(new Error("IndexedDB is not available"));
   }
   if (!dbPromise) {
-    dbPromise = openDB<VoiceKitDB>(DB_NAME, 1, {
-      upgrade(db) {
-        db.createObjectStore("history", { keyPath: "id" });
-        db.createObjectStore("presets", { keyPath: "id" });
-        db.createObjectStore("kv");
+    dbPromise = openDB<VoiceKitDB>(DB_NAME, 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          db.createObjectStore("history", { keyPath: "id" });
+          db.createObjectStore("presets", { keyPath: "id" });
+          db.createObjectStore("kv");
+        }
+        if (oldVersion < 2) {
+          const libraryStore = db.createObjectStore("library", { keyPath: "id" });
+          libraryStore.createIndex("type", "type", { unique: false });
+          libraryStore.createIndex("archived", "archived", { unique: false });
+
+          const audioStore = db.createObjectStore("generated_audio", { keyPath: "id" });
+          audioStore.createIndex("libraryId", "libraryId", { unique: false });
+        }
       },
     });
   }
@@ -308,27 +381,59 @@ export async function setByokKey(key: string | null): Promise<void> {
   }
 }
 
+export async function getProviderByokKey(provider: string): Promise<string | null> {
+  return readKv<string | null>(`byokKey_${provider}`, z.string().min(1).nullable(), null);
+}
+
+export async function setProviderByokKey(provider: string, key: string | null): Promise<void> {
+  const db = await getDB();
+  if (key === null || key.trim() === "") {
+    await db.delete("kv", `byokKey_${provider}`);
+  } else {
+    await db.put("kv", key.trim(), `byokKey_${provider}`);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Drafts                                                             */
+/* ------------------------------------------------------------------ */
+
+export async function getDraftText(): Promise<string | null> {
+  return readKv<string | null>("draftText", z.string().nullable(), null);
+}
+
+export async function setDraftText(text: string | null): Promise<void> {
+  const db = await getDB();
+  if (text === null) {
+    await db.delete("kv", "draftText");
+  } else {
+    await db.put("kv", text, "draftText");
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Export / import / clear / usage                                      */
 /* ------------------------------------------------------------------ */
 
 export async function exportAllData(): Promise<ExportPayload> {
-  const [prefs, stats, history, presets, queue] = await Promise.all([
+  const [prefs, stats, history, presets, queue, library] = await Promise.all([
     getPrefs(),
     getStats(),
     listHistory(),
     listPresets(),
     loadQueue(),
+    listLibraryItems(),
   ]);
   return {
     product: "mk-voicekit",
-    version: 1,
+    version: 2,
     exportedAt: Date.now(),
     prefs,
     stats,
     history,
     presets,
     queue,
+    library,
   };
 }
 
@@ -351,12 +456,20 @@ export async function importAllData(json: string): Promise<void> {
   const db = await getDB();
   await db.clear("history");
   await db.clear("presets");
-  const tx = db.transaction(["history", "presets"], "readwrite");
+  await db.clear("library");
+  await db.clear("generated_audio");
+
+  const tx = db.transaction(["history", "presets", "library"], "readwrite");
   for (const entry of payload.history) {
     await tx.objectStore("history").put(entry);
   }
   for (const preset of payload.presets) {
     await tx.objectStore("presets").put(preset);
+  }
+  if (payload.library) {
+    for (const item of payload.library) {
+      await tx.objectStore("library").put(item);
+    }
   }
   await tx.done;
   await setPrefs(payload.prefs);
@@ -366,9 +479,15 @@ export async function importAllData(json: string): Promise<void> {
 
 export async function clearAllData(): Promise<void> {
   const db = await getDB();
-  await Promise.all([db.clear("history"), db.clear("presets"), db.clear("kv")]);
+  await Promise.all([
+    db.clear("history"),
+    db.clear("presets"),
+    db.clear("library"),
+    db.clear("generated_audio"),
+    db.clear("kv"),
+  ]);
   if (typeof localStorage !== "undefined") {
-    for (const key of ["vk-theme", "vk-consent"]) {
+    for (const key of ["vk-theme", "vk-consent", "vk-ai-quota"]) {
       localStorage.removeItem(key);
     }
   }
@@ -496,4 +615,89 @@ export async function migrateLegacyData(): Promise<void> {
   } finally {
     await writeKv("legacyMigrated", true);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Library (Saved texts, imported documents, projects)                */
+/* ------------------------------------------------------------------ */
+
+export async function listLibraryItems(): Promise<LibraryItem[]> {
+  try {
+    const db = await getDB();
+    const all = await db.getAll("library");
+    return all
+      .filter((item) => libraryItemSchema.safeParse(item).success)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  } catch {
+    return [];
+  }
+}
+
+export async function getLibraryItem(id: string): Promise<LibraryItem | null> {
+  try {
+    const db = await getDB();
+    const item = await db.get("library", id);
+    if (!item) return null;
+    const parsed = libraryItemSchema.safeParse(item);
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLibraryItem(item: LibraryItem): Promise<void> {
+  const db = await getDB();
+  await db.put("library", item);
+}
+
+export async function deleteLibraryItem(id: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(["library", "generated_audio"], "readwrite");
+  await tx.objectStore("library").delete(id);
+  
+  const audioStore = tx.objectStore("generated_audio");
+  const index = audioStore.index("libraryId");
+  let cursor = await index.openCursor(IDBKeyRange.only(id));
+  while (cursor) {
+    await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
+/* ------------------------------------------------------------------ */
+/* Generated Audio                                                    */
+/* ------------------------------------------------------------------ */
+
+export async function listAudioClips(libraryId: string): Promise<GeneratedAudio[]> {
+  try {
+    const db = await getDB();
+    const index = db.transaction("generated_audio").store.index("libraryId");
+    const all = await index.getAll(IDBKeyRange.only(libraryId));
+    return all.filter((clip) => generatedAudioSchema.safeParse(clip).success);
+  } catch {
+    return [];
+  }
+}
+
+export async function saveAudioClip(clip: GeneratedAudio): Promise<void> {
+  const db = await getDB();
+  await db.put("generated_audio", clip);
+}
+
+export async function deleteAudioClip(id: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("generated_audio", id);
+}
+
+/* ------------------------------------------------------------------ */
+/* Pronunciation Dictionary                                           */
+/* ------------------------------------------------------------------ */
+
+export async function getPronunciationDict(): Promise<Record<string, string>> {
+  return readKv<Record<string, string>>("pronunciationDict", z.record(z.string(), z.string()), {});
+}
+
+export async function savePronunciationDict(dict: Record<string, string>): Promise<void> {
+  await writeKv("pronunciationDict", dict);
 }

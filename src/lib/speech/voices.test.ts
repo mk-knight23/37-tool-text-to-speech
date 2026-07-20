@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupVoicesByLanguage, findVoiceByURI } from "./voices";
+import { groupVoicesByLanguage, findVoiceByURI, detectLanguage, suggestVoiceForLanguage } from "./voices";
 
 function voice(
   name: string,
@@ -52,5 +52,40 @@ describe("findVoiceByURI", () => {
   it("returns null for a missing or null URI", () => {
     expect(findVoiceByURI(voices, "nope")).toBeNull();
     expect(findVoiceByURI(voices, null)).toBeNull();
+  });
+});
+
+describe("detectLanguage", () => {
+  it("detects Hindi Devanagari script", () => {
+    expect(detectLanguage("नमस्ते, आप कैसे हैं?")).toBe("hi");
+  });
+
+  it("detects Japanese script", () => {
+    expect(detectLanguage("こんにちは、お元気ですか？")).toBe("ja");
+  });
+
+  it("detects Cyrillic Russian script", () => {
+    expect(detectLanguage("Привет, как дела?")).toBe("ru");
+  });
+
+  it("detects Spanish script with special chars", () => {
+    expect(detectLanguage("¿Cómo estás?")).toBe("es");
+  });
+
+  it("defaults to English", () => {
+    expect(detectLanguage("Hello world, this is a test.")).toBe("en");
+  });
+});
+
+describe("suggestVoiceForLanguage", () => {
+  it("suggests the best voice for a language", () => {
+    const list = [
+      voice("Cloudy", "en-US", false),
+      voice("Locally", "en-US", true),
+      voice("Frenchy", "fr-FR", true),
+    ];
+    expect(suggestVoiceForLanguage(list, "en")?.name).toBe("Locally");
+    expect(suggestVoiceForLanguage(list, "fr")?.name).toBe("Frenchy");
+    expect(suggestVoiceForLanguage(list, "ja")).toBeNull();
   });
 });

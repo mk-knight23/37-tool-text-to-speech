@@ -13,6 +13,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes: { path: string; priority: number }[] = [
     { path: "/", priority: 1 },
     { path: "/tool", priority: 0.9 },
+    { path: "/library", priority: 0.8 },
+    { path: "/studio", priority: 0.8 },
+    { path: "/transcribe", priority: 0.8 },
+    { path: "/tools", priority: 0.7 },
     { path: "/docs", priority: 0.8 },
     { path: "/guides", priority: 0.8 },
     { path: "/use-cases", priority: 0.8 },

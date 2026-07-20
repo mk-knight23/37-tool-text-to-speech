@@ -11,6 +11,8 @@ import {
   ImportDataError,
   importAllData,
   setByokKey,
+  getProviderByokKey,
+  setProviderByokKey,
   type StorageUsage,
 } from "@/lib/storage";
 import {
@@ -42,12 +44,54 @@ export function SettingsView() {
   const [confirmClear, setConfirmClear] = useState(false);
   const importRef = useRef<HTMLInputElement | null>(null);
 
+  // Provider key states
+  const [keyOpenAI, setKeyOpenAI] = useState("");
+  const [keyOpenAISaved, setKeyOpenAISaved] = useState(false);
+  const [keyElevenLabs, setKeyElevenLabs] = useState("");
+  const [keyElevenLabsSaved, setKeyElevenLabsSaved] = useState(false);
+  const [keyGoogle, setKeyGoogle] = useState("");
+  const [keyGoogleSaved, setKeyGoogleSaved] = useState(false);
+  const [keyAzure, setKeyAzure] = useState("");
+  const [keyAzureSaved, setKeyAzureSaved] = useState(false);
+  const [keyPolly, setKeyPolly] = useState("");
+  const [keyPollySaved, setKeyPollySaved] = useState(false);
+
   useEffect(() => {
     void getStorageUsage().then(setUsage);
     void getByokKey().then((key) => {
       if (key) {
         setByok(key);
         setByokSaved(true);
+      }
+    });
+    void getProviderByokKey("openai").then((key) => {
+      if (key) {
+        setKeyOpenAI(key);
+        setKeyOpenAISaved(true);
+      }
+    });
+    void getProviderByokKey("elevenlabs").then((key) => {
+      if (key) {
+        setKeyElevenLabs(key);
+        setKeyElevenLabsSaved(true);
+      }
+    });
+    void getProviderByokKey("google").then((key) => {
+      if (key) {
+        setKeyGoogle(key);
+        setKeyGoogleSaved(true);
+      }
+    });
+    void getProviderByokKey("azure").then((key) => {
+      if (key) {
+        setKeyAzure(key);
+        setKeyAzureSaved(true);
+      }
+    });
+    void getProviderByokKey("polly").then((key) => {
+      if (key) {
+        setKeyPolly(key);
+        setKeyPollySaved(true);
       }
     });
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only consent read
@@ -96,6 +140,20 @@ export function SettingsView() {
     await setByokKey(byok.trim() || null);
     setByokSaved(byok.trim().length > 0);
     setMessage(byok.trim() ? "Saved your key on this device." : "Removed the key.");
+  };
+
+  const saveProviderKey = async (
+    provider: string,
+    keyValue: string,
+    setSaved: (saved: boolean) => void
+  ) => {
+    await setProviderByokKey(provider, keyValue.trim() || null);
+    setSaved(keyValue.trim().length > 0);
+    setMessage(
+      keyValue.trim()
+        ? `Saved your ${provider} key on this device.`
+        : `Removed the ${provider} key.`
+    );
   };
 
   return (
@@ -283,6 +341,106 @@ export function SettingsView() {
           <Button variant="secondary" onClick={saveByok}>
             {byokSaved ? "Saved" : "Save key"}
           </Button>
+        </div>
+      </Section>
+
+      {/* BYOK TTS Keys */}
+      <Section title="AI Speech Keys (optional)">
+        <p className="text-sm text-text-muted">
+          Configure API credentials to use premium AI voices. These stay locally on this device,
+          are sent only when starting speech playback, and are never saved on the server.
+          Clear any input and save to remove the credentials.
+        </p>
+        <div className="mt-4 space-y-4">
+          <Field label="OpenAI API Key">
+            <div className="flex gap-2 w-full mt-1">
+              <input
+                type="password"
+                value={keyOpenAI}
+                onChange={(e) => {
+                  setKeyOpenAI(e.target.value);
+                  setKeyOpenAISaved(false);
+                }}
+                placeholder="sk-..."
+                className="flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
+              />
+              <Button variant="secondary" onClick={() => saveProviderKey("openai", keyOpenAI, setKeyOpenAISaved)}>
+                {keyOpenAISaved ? "Saved" : "Save"}
+              </Button>
+            </div>
+          </Field>
+
+          <Field label="ElevenLabs API Key">
+            <div className="flex gap-2 w-full mt-1">
+              <input
+                type="password"
+                value={keyElevenLabs}
+                onChange={(e) => {
+                  setKeyElevenLabs(e.target.value);
+                  setKeyElevenLabsSaved(false);
+                }}
+                placeholder="Enter ElevenLabs Key"
+                className="flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
+              />
+              <Button variant="secondary" onClick={() => saveProviderKey("elevenlabs", keyElevenLabs, setKeyElevenLabsSaved)}>
+                {keyElevenLabsSaved ? "Saved" : "Save"}
+              </Button>
+            </div>
+          </Field>
+
+          <Field label="Google Cloud API Key">
+            <div className="flex gap-2 w-full mt-1">
+              <input
+                type="password"
+                value={keyGoogle}
+                onChange={(e) => {
+                  setKeyGoogle(e.target.value);
+                  setKeyGoogleSaved(false);
+                }}
+                placeholder="AIzaSy..."
+                className="flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
+              />
+              <Button variant="secondary" onClick={() => saveProviderKey("google", keyGoogle, setKeyGoogleSaved)}>
+                {keyGoogleSaved ? "Saved" : "Save"}
+              </Button>
+            </div>
+          </Field>
+
+          <Field label="Azure Speech Key" hint="Format: region:subscriptionKey (e.g. eastus:xxxx)">
+            <div className="flex gap-2 w-full mt-1">
+              <input
+                type="password"
+                value={keyAzure}
+                onChange={(e) => {
+                  setKeyAzure(e.target.value);
+                  setKeyAzureSaved(false);
+                }}
+                placeholder="region:subscriptionKey"
+                className="flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
+              />
+              <Button variant="secondary" onClick={() => saveProviderKey("azure", keyAzure, setKeyAzureSaved)}>
+                {keyAzureSaved ? "Saved" : "Save"}
+              </Button>
+            </div>
+          </Field>
+
+          <Field label="Amazon Polly Credentials" hint="Format: region:accessKeyId:secretAccessKey (e.g. us-east-1:xxxx:yyyy)">
+            <div className="flex gap-2 w-full mt-1">
+              <input
+                type="password"
+                value={keyPolly}
+                onChange={(e) => {
+                  setKeyPolly(e.target.value);
+                  setKeyPollySaved(false);
+                }}
+                placeholder="region:accessKeyId:secretAccessKey"
+                className="flex-1 rounded-md border border-border-strong bg-surface px-3 py-2 text-sm"
+              />
+              <Button variant="secondary" onClick={() => saveProviderKey("polly", keyPolly, setKeyPollySaved)}>
+                {keyPollySaved ? "Saved" : "Save"}
+              </Button>
+            </div>
+          </Field>
         </div>
       </Section>
 

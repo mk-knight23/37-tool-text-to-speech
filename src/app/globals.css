@@ -350,3 +350,28 @@ input[type="range"].vk-slider:focus-visible {
   border-top: 1px solid var(--color-border);
   margin: 2em 0;
 }
+
+/* Accessibility: Dyslexia-friendly spacing */
+.vk-dyslexia {
+  letter-spacing: 0.15em !important;
+  word-spacing: 0.35em !important;
+  line-height: 2.2 !important;
+}
+
+.vk-dyslexia * {
+  letter-spacing: inherit !important;
+  word-spacing: inherit !important;
+  line-height: inherit !important;
+}
+
+/* Accessibility: Dyslexia Spacing for the textarea */
+textarea.vk-dyslexia {
+  letter-spacing: 0.15em !important;
+  word-spacing: 0.35em !important;
+  line-height: 2.2 !important;
+}
+
+/* Accessibility: Reading Ruler highlight overlay style */
+.vk-ruler-container {
+  position: relative;
+}

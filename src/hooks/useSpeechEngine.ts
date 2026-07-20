@@ -1,24 +1,13 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
-import { SpeechEngine, type EngineSnapshot } from "@/lib/speech/engine";
+import { useSpeech, type UseSpeechEngine } from "@/context/SpeechContext";
 
-export interface UseSpeechEngine {
-  engine: SpeechEngine;
-  snapshot: EngineSnapshot;
-}
+export type { UseSpeechEngine };
 
 /**
- * Creates one SpeechEngine per component instance and subscribes to its
- * immutable snapshots via useSyncExternalStore. The initial snapshot is a
- * stable module constant, so server rendering returns a consistent value.
+ * Re-routes the speech engine query to use the shared app-wide SpeechContext
+ * instead of creating local isolated SpeechEngine instances.
  */
 export function useSpeechEngine(): UseSpeechEngine {
-  const engine = useMemo(() => new SpeechEngine(), []);
-  const snapshot = useSyncExternalStore(
-    engine.subscribe,
-    engine.getSnapshot,
-    engine.getSnapshot
-  );
-  return { engine, snapshot };
+  return useSpeech();
 }

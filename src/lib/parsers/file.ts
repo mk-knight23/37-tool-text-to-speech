@@ -6,7 +6,7 @@
 import { stripMarkdown, type Chapter } from "./markdown";
 import { parseSubtitles } from "./subtitles";
 
-export type ImportKind = "txt" | "md" | "pdf" | "srt" | "vtt";
+export type ImportKind = "txt" | "md" | "pdf" | "srt" | "vtt" | "docx" | "epub";
 
 export interface ImportResult {
   text: string;
@@ -15,6 +15,7 @@ export interface ImportResult {
   fileName: string;
   /** Present for PDFs so the UI can report page counts honestly. */
   pages?: number;
+  headings?: Array<{ title: string; charIndex: number; level: number }>;
 }
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -29,9 +30,11 @@ const KIND_BY_EXTENSION: Record<string, ImportKind> = {
   pdf: "pdf",
   srt: "srt",
   vtt: "vtt",
+  docx: "docx",
+  epub: "epub",
 };
 
-export const ACCEPTED_EXTENSIONS = ".txt,.md,.markdown,.pdf,.srt,.vtt";
+export const ACCEPTED_EXTENSIONS = ".txt,.md,.markdown,.pdf,.srt,.vtt,.docx,.epub";
 
 export function detectKind(fileName: string): ImportKind | null {
   const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -74,6 +77,26 @@ export async function importFile(file: File): Promise<ImportResult> {
       fileName: file.name,
       pages: extraction.pages,
     };
+  }
+
+  if (kind === "docx") {
+    const { parseDocx } = await import("./docx");
+    try {
+      return await parseDocx(file);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ImportError(msg || "Could not read this Word document.");
+    }
+  }
+
+  if (kind === "epub") {
+    const { parseEpub } = await import("./epub");
+    try {
+      return await parseEpub(file);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new ImportError(msg || "Could not read this EPUB ebook.");
+    }
   }
 
   const raw = await file.text();

@@ -69,6 +69,7 @@ export function Transcript({
             key={sentence.index}
             ref={active ? activeRef : undefined}
             type="button"
+            data-sentence-index={sentence.index}
             onClick={() => onPlaySentence(sentence.index)}
             aria-current={active ? "true" : undefined}
             aria-label={`Speak from: ${sentence.text}`}

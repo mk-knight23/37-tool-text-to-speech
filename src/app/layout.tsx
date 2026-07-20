@@ -10,6 +10,8 @@ import { ThemeScript } from "@/components/theme/ThemeScript";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Analytics } from "@/components/analytics/Analytics";
+import { SpeechProvider } from "@/context/SpeechContext";
+import { MiniPlayer } from "@/components/layout/MiniPlayer";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
@@ -41,17 +43,20 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body className="flex min-h-full flex-col">
-        <ThemeProvider>
-          <a href="#main-content" className="skip-link">
-            Skip to content
-          </a>
-          <SiteHeader />
-          <main id="main-content" className="flex-1" tabIndex={-1}>
-            {children}
-          </main>
-          <SiteFooter />
-          <Analytics />
-        </ThemeProvider>
+        <SpeechProvider>
+          <ThemeProvider>
+            <a href="#main-content" className="skip-link">
+              Skip to content
+            </a>
+            <SiteHeader />
+            <main id="main-content" className="flex-1" tabIndex={-1}>
+              {children}
+            </main>
+            <MiniPlayer />
+            <SiteFooter />
+            <Analytics />
+          </ThemeProvider>
+        </SpeechProvider>
       </body>
     </html>
   );

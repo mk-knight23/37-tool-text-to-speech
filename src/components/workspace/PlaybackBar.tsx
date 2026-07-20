@@ -9,6 +9,7 @@ import {
   Play,
   ScrollText,
   Square,
+  RotateCcw,
 } from "lucide-react";
 import type { EngineStatus } from "@/lib/speech/engine";
 import { cn } from "@/lib/cn";
@@ -27,6 +28,7 @@ interface PlaybackBarProps {
   onPrevParagraph: () => void;
   onNextParagraph: () => void;
   onToggleAutoScroll: () => void;
+  onReplay: () => void;
 }
 
 export function PlaybackBar({
@@ -42,6 +44,7 @@ export function PlaybackBar({
   onPrevParagraph,
   onNextParagraph,
   onToggleAutoScroll,
+  onReplay,
 }: PlaybackBarProps) {
   const playing = status === "speaking";
   const paused = status === "paused";
@@ -98,6 +101,14 @@ export function PlaybackBar({
                 <Play className="size-6 translate-x-0.5" aria-hidden="true" />
               )}
             </button>
+
+            <IconButton
+              label="Replay sentence"
+              onClick={onReplay}
+              disabled={disabled}
+            >
+              <RotateCcw className="size-4" aria-hidden="true" />
+            </IconButton>
 
             <IconButton
               label="Next sentence"

@@ -17,6 +17,7 @@
     "@fontsource/atkinson-hyperlegible": "^5.2.8",
     "ai": "^7.0.29",
     "idb": "^8.0.3",
+    "jszip": "^3.10.1",
     "lucide-react": "^1.24.0",
     "next": "16.2.10",
     "pdfjs-dist": "^6.1.200",
@@ -47,7 +48,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mk-knight23/37-tool-text-to-speech"
+    "url": "https://github.com/mk-knight23/MK-VoiceKit"
   },
   "homepage": "https://voicekit.mkazi.live"
 }

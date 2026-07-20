@@ -14,6 +14,7 @@
 
 import { chunkSentence } from "./chunk";
 import type { SentenceRef } from "./segment";
+import type { AppVoice } from "./voices";
 
 export type EngineStatus = "idle" | "speaking" | "paused";
 
@@ -35,7 +36,7 @@ export interface EngineSnapshot {
 }
 
 export interface UtteranceSettings {
-  voice: SpeechSynthesisVoice | null;
+  voice: AppVoice | null;
   rate: number;
   pitch: number;
   volume: number;
@@ -59,6 +60,7 @@ const IDLE_SNAPSHOT: EngineSnapshot = {
 
 export class SpeechEngine {
   private synth: SpeechSynthesis | null;
+  private activeAudio: HTMLAudioElement | null = null;
   private sentences: SentenceRef[] = [];
   private settings: UtteranceSettings = {
     voice: null,
@@ -113,7 +115,8 @@ export class SpeechEngine {
   }
 
   play(fromIndex?: number): void {
-    if (!this.synth) return;
+    const isAi = this.isAiActive();
+    if (!this.synth && !isAi) return;
     if (this.snapshot.status === "paused" && fromIndex === undefined) {
       this.resume();
       return;
@@ -141,16 +144,32 @@ export class SpeechEngine {
   }
 
   pause(): void {
-    if (!this.synth || this.snapshot.status !== "speaking") return;
+    const isAi = this.isAiActive();
+    if (!this.synth && !isAi) return;
+    if (this.snapshot.status !== "speaking") return;
     this.accumulateSpokenTime();
-    this.synth.pause();
+    
+    if (isAi && this.activeAudio) {
+      this.activeAudio.pause();
+    } else if (this.synth) {
+      this.synth.pause();
+    }
+    
     this.update({ ...this.snapshot, status: "paused" });
   }
 
   resume(): void {
-    if (!this.synth || this.snapshot.status !== "paused") return;
+    const isAi = this.isAiActive();
+    if (!this.synth && !isAi) return;
+    if (this.snapshot.status !== "paused") return;
     this.utteranceStartedAt = Date.now();
-    this.synth.resume();
+    
+    if (isAi && this.activeAudio) {
+      this.activeAudio.play().catch(() => {});
+    } else if (this.synth) {
+      this.synth.resume();
+    }
+    
     this.update({ ...this.snapshot, status: "speaking" });
   }
 
@@ -197,7 +216,8 @@ export class SpeechEngine {
   }
 
   private speakSentence(index: number, generation: number): void {
-    if (!this.synth) return;
+    const isAi = this.isAiActive();
+    if (!this.synth && !isAi) return;
     const sentence = this.sentences[index];
     if (!sentence) {
       this.finish(generation);
@@ -223,7 +243,8 @@ export class SpeechEngine {
     chunkIndex: number,
     generation: number
   ): void {
-    if (!this.synth || generation !== this.generation) return;
+    const isAi = this.isAiActive();
+    if ((!this.synth && !isAi) || generation !== this.generation) return;
     const chunk = chunks[chunkIndex];
     if (!chunk) {
       const next = sentenceIndex + 1;
@@ -235,9 +256,14 @@ export class SpeechEngine {
       return;
     }
 
+    if (isAi) {
+      void this.speakChunkAi(sentenceIndex, chunks, chunkIndex, generation);
+      return;
+    }
+
     const utterance = new SpeechSynthesisUtterance(chunk.text);
     if (this.settings.voice) {
-      utterance.voice = this.settings.voice;
+      utterance.voice = this.settings.voice as SpeechSynthesisVoice;
       utterance.lang = this.settings.voice.lang;
     }
     utterance.rate = this.settings.rate;
@@ -288,7 +314,113 @@ export class SpeechEngine {
       });
     };
 
-    this.synth.speak(utterance);
+    if (this.synth) {
+      this.synth.speak(utterance);
+    }
+  }
+
+  private async speakChunkAi(
+    sentenceIndex: number,
+    chunks: { text: string; offset: number }[],
+    chunkIndex: number,
+    generation: number
+  ): Promise<void> {
+    if (generation !== this.generation) return;
+    const chunk = chunks[chunkIndex];
+    if (!chunk) return;
+
+    const voice = this.settings.voice;
+    if (!voice) return;
+
+    const parts = voice.voiceURI.split(":");
+    const provider = parts[1] as "openai" | "elevenlabs" | "google" | "azure" | "polly";
+    const voiceId = parts[2] || "";
+
+    try {
+      const { getProviderByokKey } = await import("../storage");
+      const key = await getProviderByokKey(provider);
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (key) {
+        headers["x-byok-key"] = key;
+      }
+
+      const res = await fetch("/api/ai/tts", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          text: chunk.text,
+          voiceId,
+          provider,
+          rate: this.settings.rate,
+          pitch: this.settings.pitch,
+          volume: this.settings.volume,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error || "Failed to synthesize speech.");
+      }
+
+      const blob = await res.blob();
+      if (generation !== this.generation) return;
+
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.volume = this.settings.volume;
+      audio.playbackRate = this.settings.rate;
+      
+      this.activeAudio = audio;
+
+      audio.onplay = () => {
+        if (generation !== this.generation) return;
+        this.spokeAnything = true;
+        this.utteranceStartedAt = Date.now();
+      };
+
+      audio.onended = () => {
+        if (generation !== this.generation) return;
+        URL.revokeObjectURL(url);
+        this.activeAudio = null;
+        this.accumulateSpokenTime();
+        this.speakChunk(sentenceIndex, chunks, chunkIndex + 1, generation);
+      };
+
+      audio.onerror = () => {
+        if (generation !== this.generation) return;
+        URL.revokeObjectURL(url);
+        this.activeAudio = null;
+        this.accumulateSpokenTime();
+        this.update({
+          ...this.snapshot,
+          status: "idle",
+          sentenceIndex: -1,
+          wordRange: null,
+          error: "Speech failed to play. Please verify your connection or API keys.",
+        });
+      };
+
+      await audio.play();
+
+    } catch (err) {
+      if (generation !== this.generation) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      this.update({
+        ...this.snapshot,
+        status: "idle",
+        sentenceIndex: -1,
+        wordRange: null,
+        error: msg || "Failed to synthesize speech.",
+      });
+    }
+  }
+
+  private isAiActive(): boolean {
+    const voice = this.settings.voice;
+    return !!(voice && voice.voiceURI.startsWith("ai:"));
   }
 
   private finish(generation: number): void {
@@ -326,6 +458,14 @@ export class SpeechEngine {
 
   private cancelPending(): void {
     this.generation += 1;
+    if (this.activeAudio) {
+      try {
+        this.activeAudio.pause();
+        this.activeAudio = null;
+      } catch {
+        // ignore
+      }
+    }
     if (this.synth) {
       // resume() first: cancel() while paused wedges some Chromium builds.
       try {

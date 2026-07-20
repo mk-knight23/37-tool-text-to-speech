@@ -24,6 +24,15 @@ import {
   setPrefs,
   updatePrefs,
   updateStats,
+  listLibraryItems,
+  saveLibraryItem,
+  deleteLibraryItem,
+  getLibraryItem,
+  listAudioClips,
+  saveAudioClip,
+  deleteAudioClip,
+  type LibraryItem,
+  type GeneratedAudio,
   type HistoryEntry,
   type Preset,
 } from "./storage";
@@ -202,7 +211,7 @@ describe("export / import round-trip", () => {
     // Act
     const payload = await exportAllData();
     expect(payload.product).toBe("mk-voicekit");
-    expect(payload.version).toBe(1);
+    expect(payload.version).toBe(2);
 
     await clearAllData();
     await expect(listHistory()).resolves.toHaveLength(0);
@@ -253,5 +262,99 @@ describe("legacy migration", () => {
     await migrateLegacyData();
 
     await expect(listHistory()).resolves.toHaveLength(1);
+  });
+});
+
+describe("library and generated_audio stores integration", () => {
+  beforeEach(async () => {
+    await clearAllData();
+  });
+
+  const mockItem = (): LibraryItem => ({
+    id: "doc-1",
+    type: "document",
+    title: "Test Doc",
+    content: "Body of the test document.",
+    tags: ["testing", "unit"],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    archived: false,
+    headings: [{ title: "Heading 1", charIndex: 0, level: 1 }],
+  });
+
+  it("saves, lists, retrieves, and deletes library items", async () => {
+    const item = mockItem();
+    await saveLibraryItem(item);
+
+    const list = await listLibraryItems();
+    expect(list).toHaveLength(1);
+    expect(list[0].title).toBe("Test Doc");
+
+    const fetched = await getLibraryItem("doc-1");
+    expect(fetched).not.toBeNull();
+    expect(fetched?.content).toBe("Body of the test document.");
+    expect(fetched?.headings?.[0].title).toBe("Heading 1");
+
+    await deleteLibraryItem("doc-1");
+    await expect(listLibraryItems()).resolves.toHaveLength(0);
+    await expect(getLibraryItem("doc-1")).resolves.toBeNull();
+  });
+
+  it("saves, lists, and deletes audio clips linked to a library item", async () => {
+    const clip: GeneratedAudio = {
+      id: "clip-1",
+      libraryId: "doc-1",
+      audioBlob: new Blob(["audio-bytes"], { type: "audio/mp3" }),
+      voiceName: "David",
+      text: "Test text",
+      durationMs: 1200,
+      createdAt: Date.now(),
+    };
+
+    await saveAudioClip(clip);
+    let clips = await listAudioClips("doc-1");
+    expect(clips).toHaveLength(1);
+    expect(clips[0].voiceName).toBe("David");
+
+    await deleteAudioClip("clip-1");
+    clips = await listAudioClips("doc-1");
+    expect(clips).toHaveLength(0);
+  });
+
+  it("cascades deletion: deleting a library item clears its audio clips", async () => {
+    const item = mockItem();
+    await saveLibraryItem(item);
+
+    const clip: GeneratedAudio = {
+      id: "clip-1",
+      libraryId: "doc-1",
+      audioBlob: new Blob(["audio-bytes"], { type: "audio/mp3" }),
+      voiceName: "David",
+      text: "Test text",
+      durationMs: 1200,
+      createdAt: Date.now(),
+    };
+    await saveAudioClip(clip);
+
+    await deleteLibraryItem("doc-1");
+    await expect(listAudioClips("doc-1")).resolves.toHaveLength(0);
+  });
+
+  it("includes library items in export and restores them on import", async () => {
+    const item = mockItem();
+    await saveLibraryItem(item);
+
+    const backup = await exportAllData();
+    expect(backup.library).toBeDefined();
+    expect(backup.library).toHaveLength(1);
+    expect(backup.library?.[0].title).toBe("Test Doc");
+
+    await clearAllData();
+    await expect(listLibraryItems()).resolves.toHaveLength(0);
+
+    await importAllData(JSON.stringify(backup));
+    const restored = await listLibraryItems();
+    expect(restored).toHaveLength(1);
+    expect(restored[0].title).toBe("Test Doc");
   });
 });

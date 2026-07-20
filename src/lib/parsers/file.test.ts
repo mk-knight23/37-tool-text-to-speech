@@ -24,7 +24,7 @@ describe("detectKind", () => {
   });
 
   it("lists every accepted extension in ACCEPTED_EXTENSIONS", () => {
-    expect(ACCEPTED_EXTENSIONS).toBe(".txt,.md,.markdown,.pdf,.srt,.vtt");
+    expect(ACCEPTED_EXTENSIONS).toBe(".txt,.md,.markdown,.pdf,.srt,.vtt,.docx,.epub");
   });
 });
 

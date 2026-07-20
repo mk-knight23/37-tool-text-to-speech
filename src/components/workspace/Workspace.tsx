@@ -1,17 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Keyboard, Settings } from "lucide-react";
+import {
+  Keyboard,
+  Settings,
+  Undo2,
+  Redo2,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { useSpeechEngine } from "@/hooks/useSpeechEngine";
 import { useVoices } from "@/hooks/useVoices";
 import { usePrefs } from "@/hooks/usePrefs";
 import { useGlobalShortcuts } from "@/hooks/useGlobalShortcuts";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 import { segmentText } from "@/lib/speech/segment";
-import { findVoiceByURI } from "@/lib/speech/voices";
+import { findVoiceByURI, detectLanguage, suggestVoiceForLanguage } from "@/lib/speech/voices";
 import { isPrepActive, prepareText, type PrepOptions } from "@/lib/textprep";
 import type { ShortcutActions } from "@/lib/keyboard";
 import { coerceSliderValue } from "@/lib/slider";
-import { excerpt } from "@/lib/format";
+import { excerpt, formatDuration } from "@/lib/format";
+import { cn } from "@/lib/cn";
 import {
   addHistoryEntry,
   deletePreset,
@@ -20,6 +29,8 @@ import {
   savePreset,
   saveQueue,
   updateStats,
+  getDraftText,
+  setDraftText,
   type Preset,
   type QueueItem,
 } from "@/lib/storage";
@@ -37,6 +48,7 @@ import { QueuePanel } from "./QueuePanel";
 import { ImportDropzone } from "./ImportDropzone";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { AiPanel } from "./AiPanel";
+import { ReadingRuler } from "./ReadingRuler";
 
 const CHAR_SOFT_LIMIT = 100_000;
 
@@ -60,8 +72,17 @@ export function Workspace() {
   const { voices, loading: voicesLoading, supported, reload } = useVoices();
   const { prefs, loaded: prefsLoaded, update: updatePrefs } = usePrefs();
 
-  // Load initial welcome message text to ensure visitor gets an immediate outcome
-  const [rawText, setRawText] = useState("Welcome to MK VoiceKit. Type or paste your text here, or use the advanced options to drop a PDF or subtitle file, then press Play below.");
+  // Load welcome text and wrap in undo/redo stack
+  const {
+    value: rawText,
+    setValue: setRawText,
+    undo,
+    redo,
+    reset: resetText,
+    canUndo,
+    canRedo,
+  } = useUndoRedo("Welcome to MK VoiceKit. Type or paste your text here, or use the advanced options to drop a PDF or subtitle file, then press Play below.");
+
   const [sourceLabel, setSourceLabel] = useState<string | null>(null);
   const [selectedURI, setSelectedURI] = useState<string | null>(null);
   const [rate, setRate] = useState(1);
@@ -78,10 +99,35 @@ export function Workspace() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // Advanced toggler
+  // Advanced toggler & accessibility options
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [dyslexiaSpacing, setDyslexiaSpacing] = useState(false);
+  const [showRuler, setShowRuler] = useState(false);
+  const [rulerFollow, setRulerFollow] = useState<"cursor" | "sentence">("cursor");
 
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const sessionCounted = useRef(false);
+
+  // Load draft text on mount
+  useEffect(() => {
+    async function loadDraft() {
+      const draft = await getDraftText();
+      if (draft !== null) {
+        resetText(draft);
+      }
+    }
+    void loadDraft();
+  }, [resetText]);
+
+  // Auto-save draft text
+  useEffect(() => {
+    if (!rawText.trim()) return;
+    const timer = setTimeout(() => {
+      void setDraftText(rawText);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [rawText]);
 
   // Adopt persisted preferences once loaded (async source of truth).
   useEffect(() => {
@@ -101,12 +147,12 @@ export function Workspace() {
     void loadQueue().then(setQueue);
     const stashed = takeStashedText();
     if (stashed) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot handoff from /history
       setRawText(stashed);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot handoff from /history
       setSourceLabel(null);
     }
     track("tool_opened");
-  }, []);
+  }, [setRawText]);
 
   const spokenText = useMemo(
     () => (isPrepActive(prep) ? prepareText(rawText, prep) : rawText),
@@ -119,6 +165,23 @@ export function Workspace() {
     [voices, selectedURI]
   );
 
+  // Auto-suggest best voice on language detection
+  useEffect(() => {
+    if (voices.length === 0 || !rawText.trim()) return;
+    const timer = setTimeout(() => {
+      const detectedLang = detectLanguage(rawText);
+      const currentVoiceLang = selectedVoice ? selectedVoice.lang.split(/[-_]/)[0].toLowerCase() : "";
+      if (currentVoiceLang && currentVoiceLang !== detectedLang) {
+        const suggested = suggestVoiceForLanguage(voices, detectedLang);
+        if (suggested && suggested.voiceURI !== selectedURI) {
+          setSelectedURI(suggested.voiceURI);
+          setNotice(`Auto-switched voice to ${suggested.name} based on detected text language.`);
+        }
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [rawText, voices, selectedVoice, selectedURI]);
+
   // Default a voice once voices are available and none is chosen.
   useEffect(() => {
     if (voices.length === 0) return;
@@ -127,6 +190,17 @@ export function Workspace() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- pick a default once async voices arrive
     if (fallback) setSelectedURI(fallback.voiceURI);
   }, [voices, selectedURI]);
+
+  const wordCount = useMemo(() => {
+    const clean = rawText.trim();
+    if (!clean) return 0;
+    return clean.split(/\s+/).length;
+  }, [rawText]);
+
+  const estimatedDurationSec = useMemo(() => {
+    if (rate <= 0) return 0;
+    return (wordCount / (150 * rate)) * 60;
+  }, [wordCount, rate]);
 
   // Push sentences to the engine whenever segmentation changes.
   useEffect(() => {
@@ -207,8 +281,7 @@ export function Workspace() {
   const getActions = useCallback(() => actionsRef.current, []);
   useGlobalShortcuts(getActions);
 
-  // Stop speech if the component unmounts.
-  useEffect(() => () => engine.stop(), [engine]);
+  // Speech state is persistent globally, controlled by global mini-player.
 
   const handleSelectVoice = (voice: SpeechSynthesisVoice) => {
     setSelectedURI(voice.voiceURI);
@@ -363,23 +436,41 @@ export function Workspace() {
   }, [snapshot.status, snapshot.sentenceIndex, segmentation.sentences]);
 
   return (
-    <div className="mx-auto max-w-4xl overflow-x-clip px-4 py-6">
+    <div className={cn(
+      "mx-auto max-w-4xl overflow-x-clip px-4 py-6 transition-all duration-300",
+      focusMode && "fixed inset-0 z-50 max-w-none bg-bg p-8 overflow-y-auto flex flex-col gap-6"
+    )}>
       <div className="mb-6 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">Voice Workspace</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">
+            {focusMode ? "Focus Workspace" : "Voice Workspace"}
+          </h1>
           <p className="text-text-muted text-sm sm:text-base">
-            Type or paste text, pick a voice, and start reading.
+            {focusMode ? "Distraction-free focus mode active." : "Type or paste text, pick a voice, and start reading."}
           </p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => setShortcutsOpen(true)}
-          className="cursor-pointer"
-        >
-          <Keyboard className="size-4" aria-hidden="true" />
-          <span className="hidden sm:inline">Keyboard shortcuts</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {focusMode && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setFocusMode(false)}
+              className="cursor-pointer"
+            >
+              <Minimize2 className="size-4" aria-hidden="true" />
+              <span>Exit Focus</span>
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShortcutsOpen(true)}
+            className="cursor-pointer"
+          >
+            <Keyboard className="size-4" aria-hidden="true" />
+            <span className="hidden sm:inline">Keyboard shortcuts</span>
+          </Button>
+        </div>
       </div>
 
       {/* Polite status region for assistive tech (sentence granularity). */}
@@ -405,6 +496,79 @@ export function Workspace() {
         {/* Core Layout: Input and playback */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2 bg-surface border border-border p-4 rounded-xl shadow-sm">
+            {/* Accessibility Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 mb-2">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={undo}
+                  disabled={!canUndo}
+                  className="p-1.5 rounded hover:bg-surface-sunken disabled:opacity-40"
+                  title="Undo"
+                >
+                  <Undo2 className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={redo}
+                  disabled={!canRedo}
+                  className="p-1.5 rounded hover:bg-surface-sunken disabled:opacity-40"
+                  title="Redo"
+                >
+                  <Redo2 className="size-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                {!focusMode && (
+                  <button
+                    type="button"
+                    onClick={() => setFocusMode(true)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold border border-border-strong text-text hover:bg-surface-sunken"
+                  >
+                    <Maximize2 size={12} />
+                    <span>Focus</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDyslexiaSpacing(!dyslexiaSpacing)}
+                  className={cn(
+                    "px-2 py-1 rounded text-xs font-bold border transition-all",
+                    dyslexiaSpacing
+                      ? "bg-primary text-on-primary border-primary"
+                      : "border-border-strong text-text hover:bg-surface-sunken"
+                  )}
+                  title="Toggle wide word/letter spacing"
+                >
+                  Dyslexia Spacing
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowRuler(!showRuler)}
+                  className={cn(
+                    "px-2 py-1 rounded text-xs font-bold border transition-all",
+                    showRuler
+                      ? "bg-primary text-on-primary border-primary"
+                      : "border-border-strong text-text hover:bg-surface-sunken"
+                  )}
+                >
+                  Ruler
+                </button>
+
+                {showRuler && (
+                  <select
+                    value={rulerFollow}
+                    onChange={(e) => setRulerFollow(e.target.value as "cursor" | "sentence")}
+                    className="text-xs rounded border border-border bg-surface px-1.5 py-0.5"
+                  >
+                    <option value="cursor">Follow Cursor</option>
+                    <option value="sentence">Follow Sentence</option>
+                  </select>
+                )}
+              </div>
+            </div>
+
             <label htmlFor="source-text" className="font-semibold text-sm">
               Text to read aloud
             </label>
@@ -416,23 +580,33 @@ export function Workspace() {
                 setSourceLabel(null);
                 setActiveQueueId(null);
               }}
-              rows={8}
+              rows={focusMode ? 16 : 8}
               placeholder="Paste or type text here…"
-              className="w-full resize-y rounded-lg border border-border bg-surface p-3 text-base"
+              className={cn(
+                "w-full resize-y rounded-lg border border-border bg-surface p-3 text-base focus:border-primary focus:outline-none transition-all",
+                dyslexiaSpacing && "vk-dyslexia"
+              )}
             />
-            <div className="flex items-center justify-between text-xs text-text-muted">
-              <span className={overLimit ? "text-danger" : undefined}>
-                {rawText.length.toLocaleString()} characters
-                {overLimit ? " — very long text may be slow" : ""}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
+              <div className="flex gap-4">
+                <span className={overLimit ? "text-danger" : undefined}>
+                  {rawText.length.toLocaleString()} characters
+                  {overLimit ? " — very long text may be slow" : ""}
+                </span>
+                <span>{wordCount.toLocaleString()} words</span>
+                <span>Est. duration: {formatDuration(estimatedDurationSec * 1000)}</span>
+              </div>
               {rawText.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => {
-                    engine.stop();
-                    setRawText("");
-                    setSourceLabel(null);
-                    setActiveQueueId(null);
+                    if (window.confirm("Are you sure you want to clear all text?")) {
+                      engine.stop();
+                      setRawText("");
+                      setSourceLabel(null);
+                      setActiveQueueId(null);
+                      void setDraftText(null);
+                    }
                   }}
                   className="hover:text-danger cursor-pointer"
                 >
@@ -459,18 +633,29 @@ export function Workspace() {
           {hasText && (
             <section
               aria-label="Transcript"
-              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+              className={cn(
+                "rounded-xl border border-border bg-surface p-4 shadow-sm relative overflow-hidden",
+                dyslexiaSpacing && "vk-dyslexia"
+              )}
             >
-              <Transcript
-                sentences={segmentation.sentences}
-                activeIndex={snapshot.sentenceIndex}
-                wordRange={snapshot.wordRange}
-                hasWordBoundaries={snapshot.hasWordBoundaries}
-                autoScroll={prefs.autoScroll}
-                textScale={prefs.textScale}
-                lang={selectedVoice?.lang}
-                onPlaySentence={handlePlaySentence}
-              />
+              <div ref={transcriptContainerRef} className="relative">
+                <ReadingRuler
+                  show={showRuler}
+                  followMode={rulerFollow}
+                  activeIndex={snapshot.sentenceIndex}
+                  containerRef={transcriptContainerRef}
+                />
+                <Transcript
+                  sentences={segmentation.sentences}
+                  activeIndex={snapshot.sentenceIndex}
+                  wordRange={snapshot.wordRange}
+                  hasWordBoundaries={snapshot.hasWordBoundaries}
+                  autoScroll={prefs.autoScroll}
+                  textScale={prefs.textScale}
+                  lang={selectedVoice?.lang}
+                  onPlaySentence={handlePlaySentence}
+                />
+              </div>
             </section>
           )}
 
@@ -494,6 +679,14 @@ export function Workspace() {
             onToggleAutoScroll={() =>
               updatePrefs({ autoScroll: !prefs.autoScroll })
             }
+            onReplay={() => {
+              const current = snapshot.sentenceIndex;
+              if (current >= 0) {
+                engine.playSentence(current);
+              } else {
+                engine.playSentence(0);
+              }
+            }}
           />
         </div>
 

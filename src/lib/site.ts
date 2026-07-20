@@ -12,7 +12,7 @@ export const SITE = {
   url:
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
     "https://voicekit.mkazi.live",
-  repo: "https://github.com/mk-knight23/37-tool-text-to-speech",
+  repo: "https://github.com/mk-knight23/MK-VoiceKit",
   /** Public contact address (also used in .well-known/security.txt). */
   contactEmail: "kazi@reprime.com",
   creator: {
@@ -37,6 +37,10 @@ export interface NavLink {
 /** Header navigation — the core app surfaces plus the content hubs. */
 export const PRIMARY_NAV: NavLink[] = [
   { href: "/", label: "Workspace" },
+  { href: "/library", label: "Library" },
+  { href: "/studio", label: "Studio" },
+  { href: "/transcribe", label: "Transcribe" },
+  { href: "/tools", label: "Utilities" },
   { href: "/guides", label: "Guides" },
   { href: "/docs", label: "Docs" },
 ];
@@ -58,6 +62,10 @@ export const FOOTER_SECTIONS: FooterSection[] = [
     heading: "Product",
     links: [
       { href: "/tool", label: "Workspace" },
+      { href: "/library", label: "Library" },
+      { href: "/studio", label: "Studio" },
+      { href: "/transcribe", label: "Transcribe" },
+      { href: "/tools", label: "Utilities" },
       { href: "/dashboard", label: "Dashboard" },
       { href: "/history", label: "History" },
       { href: "/settings", label: "Settings" },

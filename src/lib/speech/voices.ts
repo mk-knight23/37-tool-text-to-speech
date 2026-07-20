@@ -1,12 +1,6 @@
-/**
- * Voice loading and grouping.
- *
- * Ported behavior from the legacy Vue app: `getVoices()` can legitimately
- * return an empty list on first call because Chromium populates voices
- * asynchronously and announces them via the `voiceschanged` event — which
- * itself fires inconsistently across browsers. We therefore combine an
- * immediate read, the event, and short polling before settling.
- */
+import { AiVoice } from "./aiVoices";
+
+export type AppVoice = SpeechSynthesisVoice | AiVoice;
 
 export function readVoices(synth: SpeechSynthesis): SpeechSynthesisVoice[] {
   return synth
@@ -51,7 +45,7 @@ export interface VoiceGroup {
   code: string;
   /** Human-readable label, e.g. "English". */
   label: string;
-  voices: SpeechSynthesisVoice[];
+  voices: AppVoice[];
 }
 
 function languageLabel(code: string): string {
@@ -67,9 +61,9 @@ function languageLabel(code: string): string {
 }
 
 export function groupVoicesByLanguage(
-  voices: SpeechSynthesisVoice[]
+  voices: AppVoice[]
 ): VoiceGroup[] {
-  const byCode = new Map<string, SpeechSynthesisVoice[]>();
+  const byCode = new Map<string, AppVoice[]>();
   for (const voice of voices) {
     const code = (voice.lang.split(/[-_]/)[0] || "und").toLowerCase();
     const bucket = byCode.get(code);
@@ -95,9 +89,37 @@ export function groupVoicesByLanguage(
 }
 
 export function findVoiceByURI(
-  voices: SpeechSynthesisVoice[],
+  voices: AppVoice[],
   voiceURI: string | null
-): SpeechSynthesisVoice | null {
+): AppVoice | null {
   if (!voiceURI) return null;
   return voices.find((voice) => voice.voiceURI === voiceURI) ?? null;
+}
+
+export function detectLanguage(text: string): string {
+  if (/[\u0900-\u097F]/.test(text)) return "hi"; // Hindi / Sanskrit
+  if (/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(text)) return "ja"; // Japanese
+  if (/[\uAC00-\uD7AF]/.test(text)) return "ko"; // Korean
+  if (/[\u0400-\u04FF]/.test(text)) return "ru"; // Russian
+  if (/[\u0600-\u06FF]/.test(text)) return "ar"; // Arabic
+  if (/[áéíóúñ¿¡]/.test(text)) return "es"; // Spanish
+  if (/[éèàùçâêîôûëïü]/.test(text)) return "fr"; // French
+  if (/[äöüß]/.test(text)) return "de"; // German
+  if (/[àèìòù]/.test(text)) return "it"; // Italian
+  return "en"; // Default
+}
+
+export function suggestVoiceForLanguage(
+  voices: AppVoice[],
+  langCode: string
+): AppVoice | null {
+  const matches = voices.filter((v) =>
+    v.lang.toLowerCase().startsWith(langCode.toLowerCase())
+  );
+  if (matches.length === 0) return null;
+  return (
+    matches.find((v) => v.localService) ??
+    matches.find((v) => v.name.toLowerCase().includes("natural")) ??
+    matches[0]
+  );
 }
