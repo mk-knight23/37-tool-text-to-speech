@@ -1,11 +1,3 @@
-/**
- * Server-side capability specs: zod input schemas, prompt builders, and (for
- * object mode) output schemas. Keyed by the ids declared in `catalog.ts`.
- *
- * Prompts instruct the model to return ONLY the transformed content (no
- * preamble) and never to invent facts — honesty is a product constraint.
- */
-
 import { z } from "zod";
 import {
   MAX_INPUT_CHARS,
@@ -34,10 +26,6 @@ interface ObjectCapabilitySpec {
 }
 
 export type CapabilitySpec = TextCapabilitySpec | ObjectCapabilitySpec;
-
-/* ------------------------------------------------------------------ */
-/* Shared fields + factories                                            */
-/* ------------------------------------------------------------------ */
 
 const textField = z
   .string()
@@ -70,10 +58,6 @@ function objectCapability<S extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 }
 
 const textOnly = z.object({ text: textField });
-
-/* ------------------------------------------------------------------ */
-/* Output schemas (object mode)                                         */
-/* ------------------------------------------------------------------ */
 
 const chaptersOutput = z.object({
   chapters: z
@@ -111,35 +95,84 @@ const dialogueOutput = z.object({
     .max(200),
 }) satisfies z.ZodType<{ turns: DialogueTurn[] }>;
 
-/* ------------------------------------------------------------------ */
-/* Reading-level system prompts                                         */
-/* ------------------------------------------------------------------ */
-
 const READING_LEVEL_INSTRUCTIONS: Record<string, string> = {
-  child:
-    "Rewrite the text for a young child. Use very simple, common words and short sentences.",
+  child: "Rewrite the text for a young child. Use very simple, common words and short sentences.",
   teen: "Rewrite the text for a teenage reader. Use clear, everyday language.",
-  general:
-    "Rewrite the text for a general adult audience. Use clear, plain language.",
-  expert:
-    "Rewrite the text for an expert audience. Precise, technical language is fine, but keep it readable when spoken.",
+  general: "Rewrite the text for a general adult audience. Use clear, plain language.",
+  expert: "Rewrite the text for an expert audience. Precise, technical language is fine, but keep it readable when spoken.",
 };
 
 const RETURN_ONLY_TEXT =
   "Keep the meaning and all facts. Do not add commentary, titles, or notes. Return only the resulting text.";
 
-/* ------------------------------------------------------------------ */
-/* Registry                                                             */
-/* ------------------------------------------------------------------ */
-
 export const SPECS: Record<CapabilityId, CapabilitySpec> = {
-  "rewrite-for-natural-speech": textCapability(textOnly, ({ text }) => ({
-    system: `You rewrite text so it sounds natural when read aloud by a text-to-speech voice. Prefer shorter sentences, a natural rhythm, and clear phrasing. Expand symbols and abbreviations into spoken words where it helps. ${RETURN_ONLY_TEXT}`,
+  "fix-grammar": textCapability(textOnly, ({ text }) => ({
+    system: `You correct all grammar, spelling, punctuation, and typos. Do not change vocabulary or tone unless necessary to fix an error. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "improve-clarity": textCapability(textOnly, ({ text }) => ({
+    system: `You improve sentence flow and clarity, removing awkward phrasing while keeping the exact meaning. ${RETURN_ONLY_TEXT}`,
     prompt: text,
   })),
 
   simplify: textCapability(textOnly, ({ text }) => ({
-    system: `You simplify text so it is easy to understand when heard. Use plain words and short sentences. Keep all key information and add nothing new. ${RETURN_ONLY_TEXT}`,
+    system: `You simplify text so it is easy to understand when heard. Use plain words and short sentences. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  shorten: textCapability(textOnly, ({ text }) => ({
+    system: `You condense text by 30-50%, cutting filler and redundancy while keeping all core facts. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  expand: textCapability(textOnly, ({ text }) => ({
+    system: `You elaborate on bullet points and brief text into rich, descriptive prose without inventing fake statistics or facts. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "remove-filler-words": textCapability(textOnly, ({ text }) => ({
+    system: `You remove all filler words ('um', 'uh', 'you know', 'basically', 'like', 'sort of') and repetitive verbal crutches. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "rewrite-for-natural-speech": textCapability(textOnly, ({ text }) => ({
+    system: `You rewrite text so it sounds natural when read aloud by a text-to-speech voice. Prefer shorter sentences, a natural rhythm, and clear phrasing. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-conversational": textCapability(textOnly, ({ text }) => ({
+    system: `You adopt a warm, friendly, conversational tone as if speaking directly to a friend. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-professional": textCapability(textOnly, ({ text }) => ({
+    system: `You format the script in a polished, authoritative corporate voice. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-persuasive": textCapability(textOnly, ({ text }) => ({
+    system: `You enhance rhetorical impact and persuasive power for marketing or presentations. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-educational": textCapability(textOnly, ({ text }) => ({
+    system: `You structure concepts into clear educational steps with logical pacing. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-energetic": textCapability(textOnly, ({ text }) => ({
+    system: `You inject high enthusiasm, punchy phrasing, and dynamic momentum into the script. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-calm": textCapability(textOnly, ({ text }) => ({
+    system: `You pace words gently and soothingly for relaxation, meditation, or sleep audio. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "make-dramatic": textCapability(textOnly, ({ text }) => ({
+    system: `You build narrative suspense and vivid emotional tension for storytelling. ${RETURN_ONLY_TEXT}`,
     prompt: text,
   })),
 
@@ -154,36 +187,145 @@ export const SPECS: Record<CapabilityId, CapabilitySpec> = {
     })
   ),
 
-  translate: textCapability(
+  "formal-to-informal": textCapability(textOnly, ({ text }) => ({
+    system: `You convert stiff or formal language into relaxed casual phrasing. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "youtube-script": textCapability(textOnly, ({ text }) => ({
+    system: `You format text as a YouTube video script with an engaging opening hook, clear sections, and viewer retention cues. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "podcast-script": textCapability(textOnly, ({ text }) => ({
+    system: `You turn an article or outline into a broadcast script for a podcast host with warm intro and outro remarks. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "audiobook-narration": textCapability(textOnly, ({ text }) => ({
+    system: `You format text for smooth single-narrator audiobook reading with natural prose rhythm. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  narration: textCapability(textOnly, ({ text }) => ({
+    system: `You craft authoritative voiceover copy suitable for documentary films and video essays. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  advertisement: textCapability(textOnly, ({ text }) => ({
+    system: `You create high-converting 30-second or 60-second commercial voiceover ad copy. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "product-demo": textCapability(textOnly, ({ text }) => ({
+    system: `You create a step-by-step product walkthrough voiceover script. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "social-voiceover": textCapability(textOnly, ({ text }) => ({
+    system: `You create a punchy, fast-paced voice script tailored for TikTok, Reels, and Shorts. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "news-narration": textCapability(textOnly, ({ text }) => ({
+    system: `You write in a concise, balanced journalistic news broadcast style. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  elearning: textCapability(textOnly, ({ text }) => ({
+    system: `You structure text as instructional audio modules with clear learning objectives. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "bullet-points-to-spoken-script": textCapability(textOnly, ({ text }) => ({
+    system: `You turn raw outline bullet points into fluid, interconnected spoken paragraphs. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "add-natural-pauses": textCapability(textOnly, ({ text }) => ({
+    system: `You insert punctuation commas, em-dashes, and ellipses to force natural breath pauses for speech synthesis engines. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "add-emphasis": textCapability(textOnly, ({ text }) => ({
+    system: `You format key words that require vocal stress with ALL-CAPS or phonetic cues. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "generate-intro": textCapability(textOnly, ({ text }) => ({
+    system: `You write an attention-grabbing 2-sentence opening hook for this topic. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "generate-outro": textCapability(textOnly, ({ text }) => ({
+    system: `You write a polished 2-sentence wrap-up and sign-off for this topic. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "generate-cta": textCapability(textOnly, ({ text }) => ({
+    system: `You write a single compelling Call to Action prompt for this content. ${RETURN_ONLY_TEXT}`,
+    prompt: text,
+  })),
+
+  "localize-content": textCapability(
     z.object({
       text: textField,
-      targetLanguage: z
-        .string()
-        .trim()
-        .min(1, "Choose a language to translate into.")
-        .max(40),
+      target: z.string().trim().min(1).max(50),
     }),
-    ({ text, targetLanguage }) => ({
-      system: `Translate the user's text into ${targetLanguage}. Preserve meaning, tone, and line breaks. Leave any text that is already in ${targetLanguage} unchanged. Return only the translation, with no notes.`,
+    ({ text, target }) => ({
+      system: `Adapt idioms, currency, spelling, and cultural references in the text for an audience in ${target}. ${RETURN_ONLY_TEXT}`,
       prompt: text,
     })
   ),
 
+  "translate-preserving-tone": textCapability(
+    z.object({
+      text: textField,
+      language: z.string().trim().min(1).max(40),
+    }),
+    ({ text, language }) => ({
+      system: `Translate the text into ${language}, strictly preserving the original emotional tone, brand names, and speaking style. ${RETURN_ONLY_TEXT}`,
+      prompt: text,
+    })
+  ),
+
+  translate: textCapability(
+    z
+      .object({
+        text: textField,
+        targetLanguage: z
+          .string()
+          .trim()
+          .min(1, "Choose a language to translate into.")
+          .max(40)
+          .optional(),
+        language: z.string().trim().min(1).max(40).optional(),
+      })
+      .refine(
+        (data) => Boolean((data.targetLanguage ?? data.language)?.trim()),
+        "Choose a language to translate into."
+      ),
+    (input: { text: string; targetLanguage?: string; language?: string }) => {
+      const lang = input.targetLanguage || input.language || "Spanish";
+      return {
+        system: `Translate the user's text into ${lang}. Preserve line breaks and meaning. ${RETURN_ONLY_TEXT}`,
+        prompt: input.text,
+      };
+    }
+  ),
+
   summarize: textCapability(textOnly, ({ text }) => ({
-    system:
-      "You write concise summaries meant to be read aloud. Capture the main points in a few short sentences or a short paragraph. Do not add information that is not in the text. Return only the summary.",
+    system: `You write concise summaries meant to be read aloud. Return only the summary.`,
     prompt: text,
   })),
 
-  "article-to-podcast-script": textCapability(textOnly, ({ text }) => ({
-    system:
-      "You turn an article into a script for a single podcast host to read aloud. Write in a warm, spoken style with a brief intro and a short outro. Keep the facts from the article; do not invent quotes, names, or statistics. Do not include stage directions, speaker labels, or music cues — only the words the host will say. Return only the script.",
+  "show-notes": textCapability(textOnly, ({ text }) => ({
+    system: `You generate structured show notes with key topics and bulleted highlights. ${RETURN_ONLY_TEXT}`,
     prompt: text,
   })),
 
-  "notes-to-narration": textCapability(textOnly, ({ text }) => ({
-    system:
-      "You expand rough notes or bullet points into smooth, connected narration suitable for reading aloud. Keep to the ideas in the notes and do not invent new facts. Return only the narration.",
+  "tone-variations": textCapability(textOnly, ({ text }) => ({
+    system: `Provide 3 distinct tone versions of the script (Conversational, Professional, Energetic), labelled clearly.`,
     prompt: text,
   })),
 
@@ -191,8 +333,16 @@ export const SPECS: Record<CapabilityId, CapabilitySpec> = {
     textOnly,
     chaptersOutput,
     ({ text }) => ({
-      system:
-        "You break text into a short, ordered list of chapters. Each chapter has a short title and a one-sentence summary of what it covers. Base the chapters only on the provided text.",
+      system: `You break text into a short, ordered list of chapters with title and summary.`,
+      prompt: text,
+    })
+  ),
+
+  "divide-into-scenes": objectCapability(
+    textOnly,
+    chaptersOutput,
+    ({ text }) => ({
+      system: `Divide this script into numbered narrative scenes with title and short summary.`,
       prompt: text,
     })
   ),
@@ -201,8 +351,7 @@ export const SPECS: Record<CapabilityId, CapabilitySpec> = {
     textOnly,
     pronunciationsOutput,
     ({ text }) => ({
-      system:
-        "You find words in the text that a text-to-speech voice is likely to mispronounce — names, places, technical terms, acronyms, or unusual spellings. For each, give a simple phonetic respelling using plain letters and hyphens, capitalising the stressed syllable, plus a short note on why. Only include words that actually appear in the text. If none are likely to be mispronounced, return an empty list.",
+      system: `Find words or acronyms likely to be mispronounced and output simple phonetic respellings.`,
       prompt: text,
     })
   ),
@@ -211,8 +360,7 @@ export const SPECS: Record<CapabilityId, CapabilitySpec> = {
     textOnly,
     dialogueOutput,
     ({ text }) => ({
-      system:
-        "You reformat text into alternating speaker turns for a two-person read (for example Host and Guest). Give each turn a speaker label and the exact words to speak. Preserve the meaning; you may lightly adjust wording so the exchange sounds natural, but do not invent new facts. Use at most two distinct speakers.",
+      system: `Reformat text into alternating speaker turns for a two-person dialogue.`,
       prompt: text,
     })
   ),

@@ -1,58 +1,126 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { 
-  ArrowLeft, 
-  Clock, 
-  Video, 
-  Trash2, 
-  Plus, 
-  Scissors, 
-  Subtitles, 
-  Languages, 
-  Check, 
-  Copy
+import React, { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  Scissors,
+  Clock,
+  Subtitles,
+  Languages,
+  Copy,
+  Check,
+  RotateCcw,
+  Download,
+  Trash2,
+  Plus,
+  Volume2,
+  Sparkles,
+  FileText,
+  Search,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getPronunciationDict, savePronunciationDict } from "@/lib/storage";
-import { expandNumbers } from "@/lib/textprep/numbers";
-import { parseSubtitles } from "@/lib/parsers/subtitles";
+import {
+  removeRepeatedSpaces,
+  removeUnwantedLineBreaks,
+  stripHtmlTags,
+  fixPunctuationSpacing,
+  convertCase,
+  calculateTextMetrics,
+  wordsToSpeechMinutes,
+  minutesToWords,
+  srtToVtt,
+  vttToSrt,
+  stripSubtitleTimestamps,
+  createSilenceAudioBlob,
+} from "@/lib/daily-tools";
 import { cn } from "@/lib/cn";
 
-export default function ToolsPage() {
+function ToolsContent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"calc" | "dict" | "timer" | "cleaner" | "subs">("calc");
+  const initialTab = (searchParams.get("tab") as "cleaner" | "calc" | "dict" | "subs" | "audio") || "cleaner";
+  const [activeTab, setActiveTab] = useState<"cleaner" | "calc" | "dict" | "subs" | "audio">(initialTab);
 
   /* ------------------------------------------------------------------ */
-  /* 1. Calculator States                                               */
+  /* 1. Text Cleaner States                                             */
   /* ------------------------------------------------------------------ */
-  const [calcWords, setCalcWords] = useState<string>("500");
+  const [cleanerInput, setCleanerInput] = useState(
+    "Paste messy text here... <p>HTML tags</p>,   repeated   spaces, and broken\nline breaks."
+  );
+  const [copiedCleaner, setCopiedCleaner] = useState(false);
+
+  const cleanerMetrics = useMemo(() => calculateTextMetrics(cleanerInput), [cleanerInput]);
+
+  const handleCleanAction = (action: "spaces" | "breaks" | "html" | "punct" | "upper" | "lower" | "title" | "sentence") => {
+    let result = cleanerInput;
+    if (action === "spaces") result = removeRepeatedSpaces(result);
+    if (action === "breaks") result = removeUnwantedLineBreaks(result);
+    if (action === "html") result = stripHtmlTags(result);
+    if (action === "punct") result = fixPunctuationSpacing(result);
+    if (["upper", "lower", "title", "sentence"].includes(action)) {
+      result = convertCase(result, action as "upper" | "lower" | "title" | "sentence");
+    }
+    setCleanerInput(result);
+  };
+
+  const handleCopyCleaner = () => {
+    navigator.clipboard.writeText(cleanerInput);
+    setCopiedCleaner(true);
+    setTimeout(() => setCopiedCleaner(false), 2000);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* 2. Calculator States                                               */
+  /* ------------------------------------------------------------------ */
+  const [calcWords, setCalcWords] = useState<string>("750");
   const [calcRate, setCalcRate] = useState<string>("1.0");
-  const [calcWpm, setCalcWpm] = useState<string>("150");
+  const [calcReadingWpm, setCalcReadingWpm] = useState<string>("220");
+  const [targetMinutes, setTargetMinutes] = useState<string>("5");
 
   const calcResults = useMemo(() => {
     const words = Math.max(0, parseInt(calcWords, 10) || 0);
     const rate = Math.max(0.1, parseFloat(calcRate) || 1.0);
-    const readingWpm = Math.max(10, parseInt(calcWpm, 10) || 200);
-
-    // TTS speech speed (average 150 WPM at 1.0x rate)
-    const ttsWpm = 150 * rate;
-    const ttsMinutes = words / ttsWpm;
-    const ttsSeconds = Math.round(ttsMinutes * 60);
-
-    // Silent reading speed
+    const readingWpm = Math.max(50, parseInt(calcReadingWpm, 10) || 220);
+    const speech = wordsToSpeechMinutes(words, rate);
     const readingMinutes = words / readingWpm;
-    const readingSeconds = Math.round(readingMinutes * 60);
+
+    // YouTube 10-minute script target words
+    const ytWords = minutesToWords(10, rate);
+    const podcastWords = minutesToWords(30, rate);
+    const targetWordsResult = minutesToWords(parseFloat(targetMinutes) || 5, rate);
 
     return {
-      ttsTime: ttsSeconds,
-      readingTime: readingSeconds,
+      speechFormatted: speech.formatted,
+      readingFormatted: `${Math.floor(readingMinutes)}m ${Math.round((readingMinutes % 1) * 60)}s`,
+      ytWords,
+      podcastWords,
+      targetWordsResult,
     };
-  }, [calcWords, calcRate, calcWpm]);
+  }, [calcWords, calcRate, calcReadingWpm, targetMinutes]);
 
   /* ------------------------------------------------------------------ */
-  /* 2. Dictionary States                                               */
+  /* 3. Subtitle States                                                 */
+  /* ------------------------------------------------------------------ */
+  const [subsInput, setSubsInput] = useState(
+    "1\n00:00:01,000 --> 00:00:04,000\nWelcome to MK VoiceKit.\n\n2\n00:00:04,500 --> 00:00:08,000\nThis tool converts subtitle formats."
+  );
+  const [subsOutput, setSubsOutput] = useState("");
+  const [copiedSubs, setCopiedSubs] = useState(false);
+
+  const handleConvertSrtToVtt = () => setSubsOutput(srtToVtt(subsInput));
+  const handleConvertVttToSrt = () => setSubsOutput(vttToSrt(subsInput));
+  const handleStripTimestamps = () => setSubsOutput(stripSubtitleTimestamps(subsInput));
+
+  const handleCopySubs = () => {
+    navigator.clipboard.writeText(subsOutput || subsInput);
+    setCopiedSubs(true);
+    setTimeout(() => setCopiedSubs(false), 2000);
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* 4. Pronunciation Dictionary States                                 */
   /* ------------------------------------------------------------------ */
   const [dict, setDict] = useState<Record<string, string>>({});
   const [dictWord, setDictWord] = useState("");
@@ -65,25 +133,20 @@ export default function ToolsPage() {
   };
 
   useEffect(() => {
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     loadDict();
   }, []);
 
-  const handleAddDictRule = async (e: React.FormEvent) => {
+  const handleAddDict = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!dictWord.trim() || !dictReplace.trim()) return;
-
-    const updated = {
-      ...dict,
-      [dictWord.trim()]: dictReplace.trim(),
-    };
+    const updated = { ...dict, [dictWord.trim()]: dictReplace.trim() };
     await savePronunciationDict(updated);
     setDict(updated);
     setDictWord("");
     setDictReplace("");
   };
 
-  const handleDeleteDictRule = async (word: string) => {
+  const handleDeleteDict = async (word: string) => {
     const updated = { ...dict };
     delete updated[word];
     await savePronunciationDict(updated);
@@ -94,506 +157,446 @@ export default function ToolsPage() {
     if (!dictSearch.trim()) return Object.entries(dict);
     const query = dictSearch.toLowerCase();
     return Object.entries(dict).filter(
-      ([word, replace]) => 
-        word.toLowerCase().includes(query) || replace.toLowerCase().includes(query)
+      ([word, rep]) => word.toLowerCase().includes(query) || rep.toLowerCase().includes(query)
     );
   }, [dict, dictSearch]);
 
   /* ------------------------------------------------------------------ */
-  /* 3. Script Timer States                                             */
+  /* 5. Audio Utilities States                                          */
   /* ------------------------------------------------------------------ */
-  const [timerScript, setTimerScript] = useState("");
-  const [timerWpmPreset, setTimerWpmPreset] = useState<"130" | "150" | "170">("150");
-  const [timerTargetSeconds, setTimerTargetSeconds] = useState("60");
+  const [silenceDuration, setSilenceDuration] = useState("5");
 
-  const timerStats = useMemo(() => {
-    const words = timerScript.trim().split(/\s+/).filter(Boolean).length;
-    const wpm = parseInt(timerWpmPreset, 10);
-    const estSeconds = Math.round((words / wpm) * 60);
-    const target = parseInt(timerTargetSeconds, 10) || 60;
-    const diff = estSeconds - target;
-
-    return {
-      words,
-      estSeconds,
-      diff,
-      exceeds: diff > 0,
-    };
-  }, [timerScript, timerWpmPreset, timerTargetSeconds]);
-
-  /* ------------------------------------------------------------------ */
-  /* 4. Text Cleaner States                                             */
-  /* ------------------------------------------------------------------ */
-  const [cleanerInput, setCleanerInput] = useState("");
-  const [cleanerOutput, setCleanerOutput] = useState("");
-  const [copiedCleaner, setCopiedCleaner] = useState(false);
-
-  const handleCleanText = (actions: {
-    lines?: boolean;
-    spaces?: boolean;
-    numbers?: boolean;
-    citations?: boolean;
-    hyphens?: boolean;
-  }) => {
-    let text = cleanerInput;
-
-    if (actions.hyphens) {
-      // Fix hyphenated line breaks (e.g. read-\ning -> reading)
-      text = text.replace(/(\w+)-\s*\n\s*(\w+)/g, "$1$2");
-    }
-
-    if (actions.lines) {
-      // Remove double blank lines/multiple breaks
-      text = text.replace(/\n{3,}/g, "\n\n");
-    }
-
-    if (actions.spaces) {
-      // Clean multiple consecutive spaces
-      text = text.replace(/[ \t]+/g, " ");
-    }
-
-    if (actions.citations) {
-      // Strip citations like [1] or [citation needed]
-      text = text.replace(/\[\d+\]|\[citation needed\]/gi, "");
-    }
-
-    if (actions.numbers) {
-      // Expand numbers to text using the local numbers expander
-      text = expandNumbers(text);
-    }
-
-    setCleanerOutput(text.trim());
-  };
-
-  const handleCopyCleaner = () => {
-    navigator.clipboard.writeText(cleanerOutput);
-    setCopiedCleaner(true);
-    setTimeout(() => setCopiedCleaner(false), 2000);
-  };
-
-  const handleSendCleanerToWorkspace = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("vk-stash", cleanerOutput);
-      router.push("/tool");
-    }
-  };
-
-  /* ------------------------------------------------------------------ */
-  /* 5. Subtitle Viewer States                                          */
-  /* ------------------------------------------------------------------ */
-  const [subtitleOutput, setSubtitleOutput] = useState<string>("");
-
-  const handleSubtitleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const extension = file.name.split(".").pop()?.toLowerCase();
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const text = evt.target?.result as string;
-      const parsed = parseSubtitles(text, extension === "vtt" ? "vtt" : "srt");
-      setSubtitleOutput(parsed);
-    };
-    reader.readAsText(file);
-  };
-
-  const handleSendSubtitlesToWorkspace = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("vk-stash", subtitleOutput);
-      router.push("/tool");
-    }
-  };
-
-  // Helper function to format duration
-  const formatSeconds = (totalSeconds: number) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}m ${seconds}s`;
+  const handleDownloadSilence = () => {
+    const dur = Math.max(0.5, parseFloat(silenceDuration) || 5);
+    const blob = createSilenceAudioBlob(dur);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `silence-${dur}s.wav`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="min-h-screen bg-background text-text flex flex-col">
-      {/* Header bar */}
-      <header className="border-b bg-surface py-6 px-6 shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Languages className="h-6 w-6 text-primary" /> Daily-Use Utilities
-            </h1>
-            <p className="text-xs text-text-muted">A collection of audio, timer, and text helper utilities.</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => router.push("/tool")} title="Back to Workspace">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Workspace
-          </Button>
-        </div>
-      </header>
+    <div className="mx-auto max-w-5xl px-4 py-8 space-y-8">
+      {/* Header */}
+      <div className="border-b border-border pb-6">
+        <h1 className="text-2xl font-bold sm:text-3xl text-text">Daily Audio & Script Utilities</h1>
+        <p className="mt-1 text-xs sm:text-sm text-text-muted">
+          100% free, deterministic browser utilities for writers, creators, podcasters, and voice artists. No signup required.
+        </p>
+      </div>
 
-      {/* Main utilities dashboard */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-6 flex flex-col md:flex-row gap-6 overflow-hidden">
-        {/* Navigation Selector */}
-        <section className="w-full md:w-56 space-y-2 shrink-0">
-          {[
-            { id: "calc", label: "Speech Calculator", icon: Clock },
-            { id: "dict", label: "Pronunciation Dictionary", icon: Languages },
-            { id: "timer", label: "Script Timer", icon: Video },
-            { id: "cleaner", label: "Text Cleaner", icon: Scissors },
-            { id: "subs", label: "Subtitle Reader", icon: Subtitles },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            return (
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-border pb-2">
+        {[
+          { key: "cleaner", label: "Text Cleaner", icon: Scissors },
+          { key: "calc", label: "Speech & Reading Calculators", icon: Clock },
+          { key: "subs", label: "Subtitle & SRT/VTT Converters", icon: Subtitles },
+          { key: "dict", label: "Pronunciation Dictionary", icon: Languages },
+          { key: "audio", label: "Web Audio Tools", icon: Volume2 },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => {
+              setActiveTab(tab.key as any);
+              router.replace(`/tools?tab=${tab.key}`);
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer",
+              activeTab === tab.key
+                ? "bg-primary text-on-primary shadow-sm"
+                : "text-text-muted hover:text-text hover:bg-surface-sunken"
+            )}
+          >
+            <tab.icon className="size-4" />
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* TAB 1: TEXT CLEANER */}
+      {activeTab === "cleaner" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="rounded-xl border border-border bg-surface p-5 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="font-bold text-base text-text">Text Cleaner & Normalizer</h2>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={handleCopyCleaner}>
+                  {copiedCleaner ? <Check className="size-3.5 text-emerald-500 mr-1" /> : <Copy className="size-3.5 mr-1" />}
+                  <span>{copiedCleaner ? "Copied" : "Copy Text"}</span>
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCleanerInput("")}
+                  className="text-danger hover:text-danger"
+                >
+                  <RotateCcw className="size-3.5 mr-1" /> Clear
+                </Button>
+              </div>
+            </div>
+
+            <textarea
+              value={cleanerInput}
+              onChange={(e) => setCleanerInput(e.target.value)}
+              rows={8}
+              placeholder="Paste raw or messy script text here…"
+              className="w-full rounded-lg border border-border bg-surface-sunken p-3 text-sm focus:outline-none focus:border-primary"
+            />
+
+            {/* Quick Action Toolbar */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+              <span className="text-xs font-bold text-text-muted mr-1">Clean:</span>
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as "calc" | "dict" | "timer" | "cleaner" | "subs")}
-                className={cn(
-                  "w-full text-left rounded-md px-3 py-2.5 text-xs font-semibold flex items-center gap-2 transition-colors",
-                  activeTab === tab.id
-                    ? "bg-primary text-on-primary font-bold"
-                    : "text-text hover:bg-surface-sunken"
-                )}
+                onClick={() => handleCleanAction("spaces")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
               >
-                <Icon className="h-4 w-4" /> {tab.label}
+                Remove Repeated Spaces
               </button>
-            );
-          })}
-        </section>
+              <button
+                onClick={() => handleCleanAction("breaks")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                Fix Line Breaks
+              </button>
+              <button
+                onClick={() => handleCleanAction("html")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                Strip HTML Tags
+              </button>
+              <button
+                onClick={() => handleCleanAction("punct")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                Fix Punctuation
+              </button>
 
-        {/* Tab Canvas Area */}
-        <section className="flex-1 bg-surface border rounded-xl p-6 min-h-0 overflow-y-auto">
-          {/* TAB 1: Speech Calculator */}
-          {activeTab === "calc" && (
-            <div className="space-y-6">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" /> Reading and Speech Calculator
-              </h2>
-              <p className="text-xs text-text-muted">Calculate duration estimates for written scripts.</p>
+              <span className="text-xs font-bold text-text-muted mx-1">Case:</span>
+              <button
+                onClick={() => handleCleanAction("sentence")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                Sentence case
+              </button>
+              <button
+                onClick={() => handleCleanAction("title")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                Title Case
+              </button>
+              <button
+                onClick={() => handleCleanAction("lower")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                lowercase
+              </button>
+              <button
+                onClick={() => handleCleanAction("upper")}
+                className="px-2.5 py-1 rounded bg-surface border border-border text-xs font-semibold hover:bg-surface-sunken cursor-pointer"
+              >
+                UPPERCASE
+              </button>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Word Count</label>
+            {/* Live Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border text-center text-xs">
+              <div className="p-3 rounded-lg bg-surface-sunken border border-border/60">
+                <p className="text-lg font-bold text-primary">{cleanerMetrics.words.toLocaleString()}</p>
+                <p className="text-[11px] text-text-muted">Word Count</p>
+              </div>
+              <div className="p-3 rounded-lg bg-surface-sunken border border-border/60">
+                <p className="text-lg font-bold text-text">{cleanerMetrics.characters.toLocaleString()}</p>
+                <p className="text-[11px] text-text-muted">Characters</p>
+              </div>
+              <div className="p-3 rounded-lg bg-surface-sunken border border-border/60">
+                <p className="text-lg font-bold text-text">{cleanerMetrics.sentences}</p>
+                <p className="text-[11px] text-text-muted">Sentences</p>
+              </div>
+              <div className="p-3 rounded-lg bg-surface-sunken border border-border/60">
+                <p className="text-lg font-bold text-emerald-500">
+                  {Math.ceil(cleanerMetrics.speakingTimeMinutes)}m
+                </p>
+                <p className="text-[11px] text-text-muted">Speaking Time</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: CALCULATORS */}
+      {activeTab === "calc" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Words to Minutes Calculator */}
+            <div className="rounded-xl border border-border bg-surface p-5 shadow-sm space-y-4">
+              <h2 className="font-bold text-base text-text">Words to Speech & Reading Time</h2>
+              <p className="text-xs text-text-muted">
+                Calculate how long it will take to read or speak a given number of words.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-text-muted block mb-1">Total Word Count</label>
                   <input
                     type="number"
                     value={calcWords}
                     onChange={(e) => setCalcWords(e.target.value)}
-                    className="w-full rounded border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
-                    min="1"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Speech Speed Rate</label>
-                  <select
-                    value={calcRate}
-                    onChange={(e) => setCalcRate(e.target.value)}
-                    className="w-full rounded border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                  >
-                    <option value="0.8">Slow (0.8x)</option>
-                    <option value="1.0">Standard (1.0x)</option>
-                    <option value="1.2">Fast (1.2x)</option>
-                    <option value="1.5">Very Fast (1.5x)</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Silent Reading Speed (WPM)</label>
-                  <input
-                    type="number"
-                    value={calcWpm}
-                    onChange={(e) => setCalcWpm(e.target.value)}
-                    className="w-full rounded border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none font-mono"
-                    min="50"
-                  />
-                </div>
-              </div>
-
-              {/* Outputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-6">
-                <div className="border rounded-xl p-4 bg-background flex flex-col justify-between">
-                  <span className="text-xs text-text-muted font-bold block mb-1 uppercase tracking-widest">Spoken Audio Time</span>
-                  <span className="text-3xl font-extrabold text-primary font-mono block">
-                    {formatSeconds(calcResults.ttsTime)}
-                  </span>
-                  <span className="text-[10px] text-text-muted mt-2 block">
-                    Estimated playback time using text-to-speech engine.
-                  </span>
-                </div>
-
-                <div className="border rounded-xl p-4 bg-background flex flex-col justify-between">
-                  <span className="text-xs text-text-muted font-bold block mb-1 uppercase tracking-widest">Silent Reading Time</span>
-                  <span className="text-3xl font-extrabold font-mono block">
-                    {formatSeconds(calcResults.readingTime)}
-                  </span>
-                  <span className="text-[10px] text-text-muted mt-2 block">
-                    Estimated time to read silently at {calcWpm} words/min.
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 2: Pronunciation Dictionary */}
-          {activeTab === "dict" && (
-            <div className="space-y-5">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Languages className="h-5 w-5 text-primary" /> Pronunciation Dictionary
-              </h2>
-              <p className="text-xs text-text-muted">Expose custom dictionary replacements inside the text-to-speech engine.</p>
-
-              {/* Add rule */}
-              <form onSubmit={handleAddDictRule} className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end border-b pb-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase">Word / Phrase</label>
-                  <input
-                    type="text"
-                    value={dictWord}
-                    onChange={(e) => setDictWord(e.target.value)}
-                    placeholder="e.g. AI"
-                    className="w-full rounded border bg-surface px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-text-muted uppercase">Spoken Replacement</label>
-                  <input
-                    type="text"
-                    value={dictReplace}
-                    onChange={(e) => setDictReplace(e.target.value)}
-                    placeholder="e.g. ay eye"
-                    className="w-full rounded border bg-surface px-2.5 py-1.5 text-xs focus:border-primary focus:outline-none"
-                  />
-                </div>
-                <Button type="submit" size="sm" className="w-full py-2">
-                  <Plus className="h-4 w-4 mr-1" /> Add Rule
-                </Button>
-              </form>
-
-              {/* Dictionary List */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-text-muted">{filteredDict.length} rules defined</span>
-                  <input
-                    type="search"
-                    placeholder="Search rules..."
-                    value={dictSearch}
-                    onChange={(e) => setDictSearch(e.target.value)}
-                    className="border rounded px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                    className="w-full rounded-lg border border-border bg-surface-sunken p-2 text-sm font-bold focus:outline-none focus:border-primary"
                   />
                 </div>
 
-                {filteredDict.length === 0 ? (
-                  <p className="text-xs text-text-muted italic text-center py-10">No matching dictionary rules.</p>
-                ) : (
-                  <div className="border rounded-lg overflow-hidden divide-y text-xs">
-                    {filteredDict.map(([word, replace]) => (
-                      <div key={word} className="flex items-center justify-between p-3 bg-surface hover:bg-surface-sunken">
-                        <div className="grid grid-cols-2 gap-4 flex-1">
-                          <span className="font-bold font-mono">{word}</span>
-                          <span className="text-text-muted font-mono">{replace}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleDeleteDictRule(word)}
-                          className="text-error hover:bg-error/10 h-7 w-7 p-0 shrink-0"
-                          title="Delete rule"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-text-muted block mb-1">Speech Speed Rate</label>
+                    <select
+                      value={calcRate}
+                      onChange={(e) => setCalcRate(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-surface-sunken p-2 text-xs font-semibold focus:outline-none"
+                    >
+                      <option value="0.75">0.75× (Slow / Audiobooks)</option>
+                      <option value="1.0">1.0× (Normal 150 WPM)</option>
+                      <option value="1.25">1.25× (Fast 187 WPM)</option>
+                      <option value="1.5">1.5× (YouTube 225 WPM)</option>
+                      <option value="2.0">2.0× (Double Speed)</option>
+                    </select>
                   </div>
-                )}
+                  <div>
+                    <label className="text-xs font-semibold text-text-muted block mb-1">Silent Reading WPM</label>
+                    <input
+                      type="number"
+                      value={calcReadingWpm}
+                      onChange={(e) => setCalcReadingWpm(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-surface-sunken p-2 text-xs font-semibold focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-text">Estimated Speaking Time:</span>
+                  <span className="font-extrabold text-primary text-base">{calcResults.speechFormatted}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-text-muted border-t border-primary/20 pt-2">
+                  <span>Estimated Silent Reading:</span>
+                  <span className="font-bold text-text">{calcResults.readingFormatted}</span>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* TAB 3: Script Timer */}
-          {activeTab === "timer" && (
-            <div className="space-y-5">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Video className="h-5 w-5 text-primary" /> Script Timer and Speech Pacing
-              </h2>
-              <p className="text-xs text-text-muted">Paste your voiceover script to verify timing fits targeted video lengths.</p>
+            {/* Minutes to Words Target Calculator */}
+            <div className="rounded-xl border border-border bg-surface p-5 shadow-sm space-y-4">
+              <h2 className="font-bold text-base text-text">Minutes to Target Word Count</h2>
+              <p className="text-xs text-text-muted">
+                Calculate the exact script length needed to hit a specific presentation or video time.
+              </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Target Duration (seconds)</label>
-                  <input
-                    type="number"
-                    value={timerTargetSeconds}
-                    onChange={(e) => setTimerTargetSeconds(e.target.value)}
-                    className="w-full rounded border bg-surface px-3 py-2 text-sm focus:border-primary"
-                    min="1"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Speech Profile Preset</label>
-                  <select
-                    value={timerWpmPreset}
-                    onChange={(e) => setTimerWpmPreset(e.target.value as "130" | "150" | "170")}
-                    className="w-full rounded border bg-surface px-3 py-2 text-sm focus:border-primary"
-                  >
-                    <option value="130">Educational / Relaxed (130 WPM)</option>
-                    <option value="150">Conversational / News (150 WPM)</option>
-                    <option value="170">Fast / Commercials (170 WPM)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-text-muted">Script Text</label>
-                <textarea
-                  value={timerScript}
-                  onChange={(e) => setTimerScript(e.target.value)}
-                  placeholder="Paste script copy here..."
-                  className="w-full rounded border bg-surface px-3 py-2 text-xs focus:border-primary focus:outline-none min-h-[160px] font-sans"
+              <div>
+                <label className="text-xs font-semibold text-text-muted block mb-1">Desired Duration (Minutes)</label>
+                <input
+                  type="number"
+                  value={targetMinutes}
+                  onChange={(e) => setTargetMinutes(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface-sunken p-2 text-sm font-bold focus:outline-none focus:border-primary"
                 />
               </div>
 
-              {/* Stats & Threshold Alerts */}
-              {timerScript.trim() && (
-                <div className="border rounded-xl p-4 bg-background space-y-4">
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div>
-                      <span className="text-[10px] text-text-muted block uppercase">Words</span>
-                      <span className="text-lg font-bold font-mono">{timerStats.words}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-text-muted block uppercase">Estimated time</span>
-                      <span className={cn(
-                        "text-lg font-extrabold font-mono",
-                        timerStats.exceeds ? "text-error" : "text-primary"
-                      )}>
-                        {timerStats.estSeconds}s
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-text-muted block uppercase">Limit diff</span>
-                      <span className={cn(
-                        "text-lg font-bold font-mono",
-                        timerStats.diff > 0 ? "text-error" : "text-green-500"
-                      )}>
-                        {timerStats.diff > 0 ? `+${timerStats.diff}s` : `${timerStats.diff}s`}
-                      </span>
-                    </div>
-                  </div>
+              <div className="p-4 rounded-xl bg-surface-sunken border border-border space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">Required Script Length:</span>
+                  <span className="text-lg font-extrabold text-accent">
+                    {calcResults.targetWordsResult.toLocaleString()} words
+                  </span>
+                </div>
 
-                  {timerStats.exceeds && (
-                    <div className="bg-error/10 border border-error/20 rounded p-3 flex items-start gap-2 text-xs text-error">
-                      <Clock className="h-4 w-4 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="block font-bold">Script Length Exceeded!</strong>
-                        <span>Your script is estimated to be {timerStats.diff} seconds too long for the target of {timerTargetSeconds} seconds. Consider shortening the draft or reading faster.</span>
-                      </div>
-                    </div>
+                <div className="border-t border-border pt-2 space-y-1 text-xs text-text-muted">
+                  <div className="flex justify-between">
+                    <span>10-Minute YouTube Video:</span>
+                    <span className="font-bold text-text">{calcResults.ytWords.toLocaleString()} words</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>30-Minute Podcast Episode:</span>
+                    <span className="font-bold text-text">{calcResults.podcastWords.toLocaleString()} words</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: SUBTITLE & SRT/VTT TOOLS */}
+      {activeTab === "subs" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="rounded-xl border border-border bg-surface p-5 shadow-sm space-y-4">
+            <h2 className="font-bold text-base text-text">Subtitle & Transcript Converter</h2>
+            <p className="text-xs text-text-muted">
+              Convert between SRT and VTT formats, or strip all timestamps and cue numbers into clean spoken dialogue.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-text-muted">Input Subtitles (.srt / .vtt)</label>
+                <textarea
+                  value={subsInput}
+                  onChange={(e) => setSubsInput(e.target.value)}
+                  rows={10}
+                  className="w-full rounded-lg border border-border bg-surface-sunken p-3 text-xs font-mono focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-text-muted">Output Result</label>
+                  {subsOutput && (
+                    <button
+                      onClick={handleCopySubs}
+                      className="text-xs text-primary hover:underline cursor-pointer flex items-center gap-1 font-medium"
+                    >
+                      {copiedSubs ? <Check size={12} /> : <Copy size={12} />}
+                      <span>{copiedSubs ? "Copied" : "Copy Output"}</span>
+                    </button>
                   )}
                 </div>
-              )}
+                <textarea
+                  value={subsOutput}
+                  readOnly
+                  rows={10}
+                  placeholder="Converted subtitle or clean text will appear here…"
+                  className="w-full rounded-lg border border-border bg-surface-sunken p-3 text-xs font-mono focus:outline-none"
+                />
+              </div>
             </div>
-          )}
 
-          {/* TAB 4: Text Cleaner */}
-          {activeTab === "cleaner" && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Scissors className="h-5 w-5 text-primary" /> Text cleaner and sanitizer
-              </h2>
-              <p className="text-xs text-text-muted">Prepare text from PDFs or web articles to speak more naturally.</p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Messy / Copied Input</label>
-                  <textarea
-                    value={cleanerInput}
-                    onChange={(e) => setCleanerInput(e.target.value)}
-                    placeholder="Paste text containing extra breaks, hyphens, citations, etc..."
-                    className="w-full rounded border bg-surface px-3 py-2 text-xs focus:border-primary focus:outline-none min-h-[180px] font-sans"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">Cleaned Output</label>
-                  <textarea
-                    value={cleanerOutput}
-                    readOnly
-                    placeholder="Cleaned draft will display here..."
-                    className="w-full rounded border bg-surface-sunken px-3 py-2 text-xs focus:outline-none min-h-[180px] font-sans select-all"
-                  />
-                </div>
-              </div>
-
-              {/* Cleaner quick actions list */}
-              <div className="flex flex-wrap gap-2 pt-2">
-                <Button variant="ghost" size="sm" className="border text-xs" onClick={() => handleCleanText({ lines: true })}>
-                  Normalize Line Breaks
-                </Button>
-                <Button variant="ghost" size="sm" className="border text-xs" onClick={() => handleCleanText({ spaces: true })}>
-                  Clean Double Spaces
-                </Button>
-                <Button variant="ghost" size="sm" className="border text-xs" onClick={() => handleCleanText({ citations: true })}>
-                  Strip Bracket Citations
-                </Button>
-                <Button variant="ghost" size="sm" className="border text-xs" onClick={() => handleCleanText({ hyphens: true })}>
-                  Fix Line hyphens
-                </Button>
-                <Button variant="ghost" size="sm" className="border text-xs" onClick={() => handleCleanText({ numbers: true })}>
-                  Expand Numbers to text
-                </Button>
-                <Button variant="ghost" size="sm" className="border text-xs" onClick={() => handleCleanText({ lines: true, spaces: true, citations: true, hyphens: true, numbers: true })}>
-                  Run All Cleaners
-                </Button>
-              </div>
-
-              {/* Handoff controls */}
-              {cleanerOutput && (
-                <div className="flex justify-end gap-2 border-t pt-4">
-                  <Button variant="ghost" size="sm" onClick={handleCopyCleaner} className="border text-xs">
-                    {copiedCleaner ? <Check className="mr-1 h-3.5 w-3.5 text-green-500" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
-                    Copy Clean Text
-                  </Button>
-                  <Button onClick={handleSendCleanerToWorkspace} size="sm" className="text-xs">
-                    Send to Workspace
-                  </Button>
-                </div>
-              )}
+            <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
+              <Button size="sm" onClick={handleConvertSrtToVtt}>
+                Convert SRT to VTT
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleConvertVttToSrt}>
+                Convert VTT to SRT
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleStripTimestamps}>
+                Strip Timestamps (Clean Text)
+              </Button>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
-          {/* TAB 5: Subtitle Reader */}
-          {activeTab === "subs" && (
-            <div className="space-y-5">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Subtitles className="h-5 w-5 text-primary" /> Subtitle SRT/VTT Reader
-              </h2>
-              <p className="text-xs text-text-muted">Strip timestamps and formatting from subtitle files to get readable script copies.</p>
+      {/* TAB 4: PRONUNCIATION DICTIONARY */}
+      {activeTab === "dict" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="rounded-xl border border-border bg-surface p-5 shadow-sm space-y-4">
+            <h2 className="font-bold text-base text-text">Pronunciation Dictionary</h2>
+            <p className="text-xs text-text-muted">
+              Configure phonetic replacements so synthetic voices pronounce technical terms, names, and acronyms correctly.
+            </p>
 
-              <div className="border border-dashed border-border-strong rounded-xl p-8 text-center space-y-4 bg-background">
-                <Subtitles className="h-10 w-10 mx-auto text-text-muted animate-pulse" />
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold">Upload Subtitle File</p>
-                  <p className="text-[10px] text-text-muted">Supports .srt and .vtt subtitle formats</p>
-                </div>
-                <label className="inline-flex items-center justify-center rounded-md font-semibold text-xs border border-border bg-surface hover:bg-surface-sunken h-8 px-4 cursor-pointer select-none">
-                  Select Subtitle File
-                  <input type="file" accept=".srt,.vtt" onChange={handleSubtitleUpload} className="hidden" />
-                </label>
+            <form onSubmit={handleAddDict} className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-surface-sunken border border-border">
+              <div className="flex-1 min-w-[180px]">
+                <label className="text-[11px] font-semibold text-text-muted block mb-1">Word or Acronym</label>
+                <input
+                  type="text"
+                  placeholder="e.g. SQL"
+                  value={dictWord}
+                  onChange={(e) => setDictWord(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface p-2 text-xs focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="flex-1 min-w-[180px]">
+                <label className="text-[11px] font-semibold text-text-muted block mb-1">Spoken Phonetic Replacement</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sequel"
+                  value={dictReplace}
+                  onChange={(e) => setDictReplace(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface p-2 text-xs focus:outline-none focus:border-primary"
+                />
+              </div>
+              <Button size="sm" type="submit" className="mt-auto h-9">
+                <Plus size={14} className="mr-1" /> Add Replacement
+              </Button>
+            </form>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  Active Rules ({filteredDict.length})
+                </h3>
+                <input
+                  type="text"
+                  placeholder="Search rules…"
+                  value={dictSearch}
+                  onChange={(e) => setDictSearch(e.target.value)}
+                  className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs focus:outline-none"
+                />
               </div>
 
-              {subtitleOutput && (
-                <div className="space-y-3 pt-3 border-t">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-text-muted uppercase">Parsed Subtitle Script Preview</h4>
-                    <Button onClick={handleSendSubtitlesToWorkspace} size="sm" className="text-xs">
-                      Send script to Workspace
-                    </Button>
-                  </div>
-                  <textarea
-                    value={subtitleOutput}
-                    readOnly
-                    className="w-full rounded border bg-surface-sunken px-3 py-2 text-xs focus:outline-none min-h-[160px] font-sans"
-                  />
+              {filteredDict.length === 0 ? (
+                <p className="text-xs text-text-muted italic py-4 text-center">No custom pronunciation rules configured.</p>
+              ) : (
+                <div className="divide-y divide-border rounded-xl border border-border bg-surface overflow-hidden">
+                  {filteredDict.map(([word, rep]) => (
+                    <div key={word} className="flex items-center justify-between p-3 text-xs hover:bg-surface-sunken">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-text">{word}</span>
+                        <span className="text-text-muted">→</span>
+                        <span className="text-primary font-medium">{rep}</span>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteDict(word)}
+                        className="text-danger/70 hover:text-danger cursor-pointer p-1"
+                        title="Delete rule"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          )}
-        </section>
-      </main>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: AUDIO UTILITIES */}
+      {activeTab === "audio" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="rounded-xl border border-border bg-surface p-5 shadow-sm space-y-4">
+            <h2 className="font-bold text-base text-text">Web Audio Generators & Tools</h2>
+            <p className="text-xs text-text-muted">
+              Generate clean silence audio tracks for podcast padding or video intro gaps using the Web Audio API.
+            </p>
+
+            <div className="p-4 rounded-xl bg-surface-sunken border border-border space-y-3 max-w-md">
+              <h3 className="font-bold text-sm text-text">Generate WAV Silence Track</h3>
+              <div>
+                <label className="text-xs text-text-muted block mb-1">Silence Duration (Seconds)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={silenceDuration}
+                  onChange={(e) => setSilenceDuration(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface p-2 text-xs font-bold focus:outline-none focus:border-primary"
+                />
+              </div>
+              <Button size="sm" onClick={handleDownloadSilence} className="w-full">
+                <Download size={14} className="mr-1.5" /> Download {silenceDuration}s Silence (.wav)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function ToolsPage() {
+  return (
+    <Suspense fallback={<div className="h-96 rounded-xl border border-border bg-surface-sunken animate-pulse" />}>
+      <ToolsContent />
+    </Suspense>
   );
 }

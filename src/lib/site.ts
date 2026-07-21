@@ -11,7 +11,7 @@ export const SITE = {
   /** Canonical base URL; overridable per environment. */
   url:
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ??
-    "https://voicekit.mkazi.live",
+    "https://mk-voicekit.vercel.app",
   repo: "https://github.com/mk-knight23/MK-VoiceKit",
   /** Public contact address (also used in .well-known/security.txt). */
   contactEmail: "kazi@reprime.com",
@@ -36,13 +36,13 @@ export interface NavLink {
 
 /** Header navigation — the core app surfaces plus the content hubs. */
 export const PRIMARY_NAV: NavLink[] = [
-  { href: "/", label: "Workspace" },
-  { href: "/library", label: "Library" },
-  { href: "/studio", label: "Studio" },
-  { href: "/transcribe", label: "Transcribe" },
+  { href: "/", label: "Text to Speech" },
+  { href: "/reader", label: "Document Reader" },
+  { href: "/studio", label: "Voice Studio" },
+  { href: "/transcribe", label: "Speech to Text" },
   { href: "/tools", label: "Utilities" },
+  { href: "/library", label: "Library" },
   { href: "/guides", label: "Guides" },
-  { href: "/docs", label: "Docs" },
 ];
 
 export const SECONDARY_NAV: NavLink[] = [

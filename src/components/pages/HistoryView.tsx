@@ -48,7 +48,7 @@ export function HistoryView() {
 
   const undo = async () => {
     if (!deleted) return;
-    await restoreHistoryEntry(deleted);
+    await restoreHistoryEntry(deleted.id);
     setEntries(await listHistory());
     setDeleted(null);
   };

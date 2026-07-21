@@ -3,31 +3,31 @@
 /**
  * Consent-gated analytics shell (STANDARDS §6/§7).
  *
- * Honesty first: when NEXT_PUBLIC_GTM_ID is not configured, there is no
- * third-party script to load and nothing to consent to, so neither the banner
- * nor GTM ever appears — the "works entirely in your browser" claim stays
- * literally true. When GTM *is* configured, the banner is shown until the user
- * chooses (default: declined), and the GTM script loads only after an explicit
- * "granted" choice in production.
+ * Honesty first: when neither NEXT_PUBLIC_GTM_ID nor NEXT_PUBLIC_GA_MEASUREMENT_ID is configured,
+ * there is no third-party script to load and nothing to consent to, so neither the banner
+ * nor GTM/GA4 ever appears.
  */
 
 import Script from "next/script";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   GTM_ID,
+  GA_MEASUREMENT_ID,
   getConsent,
   setConsent,
+  track,
   type ConsentState,
 } from "@/lib/analytics";
 
-const IS_PROD = process.env.NODE_ENV === "production";
+const IS_PROD = process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_ANALYTICS_DEBUG === "true";
 
 export function Analytics() {
   const [consent, setConsentState] = useState<ConsentState | null>(null);
   const [ready, setReady] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Consent lives in localStorage, only readable on the client.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only consent read
     setConsentState(getConsent());
     setReady(true);
@@ -39,18 +39,48 @@ export function Analytics() {
     return () => window.removeEventListener("vk-consent-changed", onChange);
   }, []);
 
-  // No GTM configured -> no banner, no scripts, ever.
-  if (!GTM_ID) return null;
-  if (!ready) return null;
+  // Track client-side route changes without duplicate page views
+  useEffect(() => {
+    if (ready && consent === "granted" && pathname) {
+      track("page_view", { path: pathname });
+    }
+  }, [pathname, ready, consent]);
 
-  const loadGtm = IS_PROD && consent === "granted";
+  const hasIdentifier = GTM_ID.length > 0 || GA_MEASUREMENT_ID.length > 0;
+  if (!hasIdentifier || !ready) return null;
+
+  const loadScripts = IS_PROD && consent === "granted";
 
   return (
     <>
-      {loadGtm ? (
-        <Script id="gtm" strategy="afterInteractive">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID}');`}
-        </Script>
+      {loadScripts && GTM_ID ? (
+        <>
+          <Script id="gtm" strategy="afterInteractive">
+            {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${GTM_ID}');`}
+          </Script>
+          <noscript>
+            <iframe
+              src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+              height="0"
+              width="0"
+              style={{ display: "none", visibility: "hidden" }}
+              title="gtm-noscript"
+            />
+          </noscript>
+        </>
+      ) : loadScripts && GA_MEASUREMENT_ID ? (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+            strategy="afterInteractive"
+          />
+          <Script id="ga4" strategy="afterInteractive">
+            {`window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', '${GA_MEASUREMENT_ID}', { page_path: window.location.pathname });`}
+          </Script>
+        </>
       ) : null}
 
       {consent === null ? (

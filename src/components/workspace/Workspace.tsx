@@ -8,6 +8,11 @@ import {
   Redo2,
   Maximize2,
   Minimize2,
+  Search,
+  Replace,
+  Sparkles,
+  X,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useSpeechEngine } from "@/hooks/useSpeechEngine";
 import { useVoices } from "@/hooks/useVoices";
@@ -33,6 +38,7 @@ import {
   setDraftText,
   type Preset,
   type QueueItem,
+  type UsageStats,
 } from "@/lib/storage";
 import type { ImportResult } from "@/lib/parsers/file";
 import { takeStashedText } from "@/lib/handoff";
@@ -81,7 +87,9 @@ export function Workspace() {
     reset: resetText,
     canUndo,
     canRedo,
-  } = useUndoRedo("Welcome to MK VoiceKit. Type or paste your text here, or use the advanced options to drop a PDF or subtitle file, then press Play below.");
+  } = useUndoRedo(
+    "Welcome to MK VoiceKit. Type or paste your text here, drop a PDF or subtitle file, or click Improve with AI to polish your script."
+  );
 
   const [sourceLabel, setSourceLabel] = useState<string | null>(null);
   const [selectedURI, setSelectedURI] = useState<string | null>(null);
@@ -101,10 +109,17 @@ export function Workspace() {
 
   // Advanced toggler & accessibility options
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [dyslexiaSpacing, setDyslexiaSpacing] = useState(false);
   const [showRuler, setShowRuler] = useState(false);
-  const [rulerFollow, setRulerFollow] = useState<"cursor" | "sentence">("cursor");
+  const [rulerFollow, setRulerFollow] = useState<"cursor" | "sentence">("sentence");
+
+  // Find and Replace States
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [findQuery, setFindQuery] = useState("");
+  const [replaceQuery, setReplaceQuery] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
 
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
   const sessionCounted = useRef(false);
@@ -132,13 +147,11 @@ export function Workspace() {
   // Adopt persisted preferences once loaded (async source of truth).
   useEffect(() => {
     if (!prefsLoaded) return;
-    /* eslint-disable react-hooks/set-state-in-effect -- hydrate local state from persisted prefs */
     setRate(prefs.defaultRate);
     setPitch(prefs.defaultPitch);
     setVolume(prefs.defaultVolume);
     setSelectedURI(prefs.lastVoiceURI);
     setPrep(prefs.prep);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [prefsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load presets + queue once, and adopt any "Speak again" handoff text.
@@ -148,7 +161,6 @@ export function Workspace() {
     const stashed = takeStashedText();
     if (stashed) {
       setRawText(stashed);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot handoff from /history
       setSourceLabel(null);
     }
     track("tool_opened");
@@ -187,20 +199,80 @@ export function Workspace() {
     if (voices.length === 0) return;
     if (selectedURI && findVoiceByURI(voices, selectedURI)) return;
     const fallback = pickDefaultVoice(voices);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- pick a default once async voices arrive
     if (fallback) setSelectedURI(fallback.voiceURI);
   }, [voices, selectedURI]);
 
+  // Text metrics calculation
   const wordCount = useMemo(() => {
     const clean = rawText.trim();
     if (!clean) return 0;
     return clean.split(/\s+/).length;
   }, [rawText]);
 
+  const paragraphCount = useMemo(() => {
+    if (!rawText.trim()) return 0;
+    return rawText.split(/\n\s*\n/).filter((p) => p.trim().length > 0).length || 1;
+  }, [rawText]);
+
+  const sentenceCount = segmentation.sentences.length;
+
   const estimatedDurationSec = useMemo(() => {
     if (rate <= 0) return 0;
     return (wordCount / (150 * rate)) * 60;
   }, [wordCount, rate]);
+
+  const remainingDurationSec = useMemo(() => {
+    if (rate <= 0 || sentenceCount === 0) return 0;
+    const currentIdx = Math.max(0, snapshot.sentenceIndex);
+    const remainingSentences = segmentation.sentences.slice(currentIdx);
+    const remainingWords = remainingSentences
+      .map((s) => s.text)
+      .join(" ")
+      .split(/\s+/)
+      .filter(Boolean).length;
+    return (remainingWords / (150 * rate)) * 60;
+  }, [sentenceCount, snapshot.sentenceIndex, segmentation.sentences, rate]);
+
+  // Find matches count
+  const findMatchesCount = useMemo(() => {
+    if (!findQuery.trim() || !rawText) return 0;
+    const flags = caseSensitive ? "g" : "gi";
+    try {
+      const escaped = findQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, flags);
+      const matches = rawText.match(regex);
+      return matches ? matches.length : 0;
+    } catch {
+      return 0;
+    }
+  }, [findQuery, rawText, caseSensitive]);
+
+  const handleReplaceNext = () => {
+    if (!findQuery.trim() || !rawText) return;
+    const flags = caseSensitive ? "" : "i";
+    try {
+      const escaped = findQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, flags);
+      const nextText = rawText.replace(regex, replaceQuery);
+      setRawText(nextText);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleReplaceAll = () => {
+    if (!findQuery.trim() || !rawText) return;
+    const flags = caseSensitive ? "g" : "gi";
+    try {
+      const escaped = findQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, flags);
+      const nextText = rawText.replaceAll(regex, replaceQuery);
+      setRawText(nextText);
+      setNotice(`Replaced all occurrences of "${findQuery}".`);
+    } catch {
+      // ignore
+    }
+  };
 
   // Push sentences to the engine whenever segmentation changes.
   useEffect(() => {
@@ -218,7 +290,6 @@ export function Workspace() {
       if (spokenText.trim().length === 0) return;
       const voiceName = selectedVoice?.name ?? "Browser default";
       void addHistoryEntry({
-        id: crypto.randomUUID(),
         text: rawText,
         excerpt: excerpt(rawText),
         chars: rawText.length,
@@ -228,18 +299,20 @@ export function Workspace() {
         pitch,
         volume,
         durationMs: spokenMs,
-        completedAt: Date.now(),
       });
-      void updateStats((stats) => ({
-        ...stats,
-        itemsSpoken: stats.itemsSpoken + 1,
-        charactersSpoken: stats.charactersSpoken + rawText.length,
-        msListened: stats.msListened + spokenMs,
-        voiceUsage: {
-          ...stats.voiceUsage,
-          [voiceName]: (stats.voiceUsage[voiceName] ?? 0) + 1,
-        },
-      }));
+      void updateStats((stats: UsageStats) => {
+        const usage = stats.voiceUsage || {};
+        return {
+          ...stats,
+          itemsSpoken: stats.itemsSpoken + 1,
+          charactersSpoken: stats.charactersSpoken + rawText.length,
+          msListened: stats.msListened + spokenMs,
+          voiceUsage: {
+            ...usage,
+            [voiceName]: (usage[voiceName] ?? 0) + 1,
+          },
+        };
+      });
     };
     engine.setCallbacks({
       onComplete: (ms) => {
@@ -256,9 +329,6 @@ export function Workspace() {
     void updateStats((stats) => ({ ...stats, sessions: stats.sessions + 1 }));
   };
 
-  // Global keyboard shortcuts. The listener (attached once, cleaned up on
-  // unmount by useGlobalShortcuts) reads the latest actions from a ref that is
-  // refreshed in an effect — never during render.
   const actions: ShortcutActions = {
     toggle: () => {
       countSession();
@@ -280,8 +350,6 @@ export function Workspace() {
   });
   const getActions = useCallback(() => actionsRef.current, []);
   useGlobalShortcuts(getActions);
-
-  // Speech state is persistent globally, controlled by global mini-player.
 
   const handleSelectVoice = (voice: SpeechSynthesisVoice) => {
     setSelectedURI(voice.voiceURI);
@@ -414,7 +482,7 @@ export function Workspace() {
     setRawText(text);
     setSourceLabel(null);
     setActiveQueueId(null);
-    setNotice("Replaced your text with the AI result.");
+    setNotice("Replaced your text with the AI transformation.");
   };
 
   const availableVoiceURIs = useMemo(
@@ -436,44 +504,76 @@ export function Workspace() {
   }, [snapshot.status, snapshot.sentenceIndex, segmentation.sentences]);
 
   return (
-    <div className={cn(
-      "mx-auto max-w-4xl overflow-x-clip px-4 py-6 transition-all duration-300",
-      focusMode && "fixed inset-0 z-50 max-w-none bg-bg p-8 overflow-y-auto flex flex-col gap-6"
-    )}>
-      <div className="mb-6 flex items-center justify-between gap-4">
+    <div
+      className={cn(
+        "mx-auto max-w-5xl overflow-x-clip px-4 py-6 transition-all duration-300",
+        focusMode &&
+          "fixed inset-0 z-50 max-w-none bg-background p-6 sm:p-10 overflow-y-auto flex flex-col gap-6"
+      )}
+    >
+      {/* Top Workspace Bar */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">
-            {focusMode ? "Focus Workspace" : "Voice Workspace"}
-          </h1>
-          <p className="text-text-muted text-sm sm:text-base">
-            {focusMode ? "Distraction-free focus mode active." : "Type or paste text, pick a voice, and start reading."}
+          <h2 className="text-xl font-bold sm:text-2xl text-text">
+            {focusMode ? "Focus Mode" : "Text to Speech Workspace"}
+          </h2>
+          <p className="text-text-muted text-xs sm:text-sm">
+            {focusMode
+              ? "Distraction-free focus view. Press Escape or Exit Focus when done."
+              : "Paste text, import documents, choose voice and speed, then click Listen."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          {focusMode && (
+        <div className="flex flex-wrap items-center gap-2">
+          {focusMode ? (
             <Button
               variant="secondary"
               size="sm"
               onClick={() => setFocusMode(false)}
               className="cursor-pointer"
             >
-              <Minimize2 className="size-4" aria-hidden="true" />
+              <Minimize2 className="size-4 mr-1.5" />
               <span>Exit Focus</span>
             </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setFocusMode(true)}
+              className="cursor-pointer"
+              title="Enter distraction-free fullscreen view"
+            >
+              <Maximize2 className="size-4 mr-1.5" />
+              <span className="hidden sm:inline">Focus Mode</span>
+            </Button>
           )}
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowAiPanel(!showAiPanel)}
+            className={cn(
+              "cursor-pointer border-accent/40",
+              showAiPanel && "bg-accent/15 text-accent border-accent"
+            )}
+            title="Improve or transform script with AI"
+          >
+            <Sparkles className="size-4 mr-1.5 text-accent" />
+            <span>Improve with AI</span>
+          </Button>
+
           <Button
             variant="secondary"
             size="sm"
             onClick={() => setShortcutsOpen(true)}
             className="cursor-pointer"
           >
-            <Keyboard className="size-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Keyboard shortcuts</span>
+            <Keyboard className="size-4 mr-1.5" />
+            <span className="hidden sm:inline">Shortcuts</span>
           </Button>
         </div>
       </div>
 
-      {/* Polite status region for assistive tech (sentence granularity). */}
+      {/* Polite status region for screen readers */}
       <p className="sr-only" role="status" aria-live="polite">
         {liveStatus}
       </p>
@@ -481,30 +581,37 @@ export function Workspace() {
       {snapshot.error ? (
         <p
           role="alert"
-          className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+          className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger font-medium"
         >
           {snapshot.error}
         </p>
       ) : null}
+
       {notice ? (
-        <p className="mb-4 rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-text-muted">
-          {notice}
-        </p>
+        <div className="mb-4 flex items-center justify-between rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-text-muted">
+          <span>{notice}</span>
+          <button
+            onClick={() => setNotice(null)}
+            className="text-text-muted hover:text-text cursor-pointer p-1"
+          >
+            <X size={14} />
+          </button>
+        </div>
       ) : null}
 
       <div className="flex flex-col gap-6">
-        {/* Core Layout: Input and playback */}
+        {/* Main Text Input & Playback Area */}
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2 bg-surface border border-border p-4 rounded-xl shadow-sm">
-            {/* Accessibility Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2 mb-2">
+            {/* Top Toolbar: Undo/Redo, Find/Replace, Reading Ruler, Dyslexia Mode */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3 mb-2">
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={undo}
                   disabled={!canUndo}
-                  className="p-1.5 rounded hover:bg-surface-sunken disabled:opacity-40"
-                  title="Undo"
+                  className="p-1.5 rounded hover:bg-surface-sunken disabled:opacity-40 cursor-pointer"
+                  title="Undo (Ctrl+Z)"
                 >
                   <Undo2 className="size-4" />
                 </button>
@@ -512,65 +619,163 @@ export function Workspace() {
                   type="button"
                   onClick={redo}
                   disabled={!canRedo}
-                  className="p-1.5 rounded hover:bg-surface-sunken disabled:opacity-40"
-                  title="Redo"
+                  className="p-1.5 rounded hover:bg-surface-sunken disabled:opacity-40 cursor-pointer"
+                  title="Redo (Ctrl+Y)"
                 >
                   <Redo2 className="size-4" />
                 </button>
+                <div className="h-4 w-px bg-border mx-1" />
+                <button
+                  type="button"
+                  onClick={() => setShowFindReplace(!showFindReplace)}
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold border transition-all cursor-pointer",
+                    showFindReplace
+                      ? "bg-primary text-on-primary border-primary"
+                      : "border-border text-text hover:bg-surface-sunken"
+                  )}
+                  title="Find and replace text"
+                >
+                  <Search size={12} />
+                  <span>Find & Replace</span>
+                </button>
               </div>
-              <div className="flex items-center gap-2">
-                {!focusMode && (
-                  <button
-                    type="button"
-                    onClick={() => setFocusMode(true)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold border border-border-strong text-text hover:bg-surface-sunken"
-                  >
-                    <Maximize2 size={12} />
-                    <span>Focus</span>
-                  </button>
-                )}
+
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setDyslexiaSpacing(!dyslexiaSpacing)}
                   className={cn(
-                    "px-2 py-1 rounded text-xs font-bold border transition-all",
+                    "px-2 py-1 rounded text-xs font-semibold border transition-all cursor-pointer",
                     dyslexiaSpacing
                       ? "bg-primary text-on-primary border-primary"
-                      : "border-border-strong text-text hover:bg-surface-sunken"
+                      : "border-border text-text hover:bg-surface-sunken"
                   )}
-                  title="Toggle wide word/letter spacing"
+                  title="Toggle wide word/letter spacing for easier reading"
                 >
-                  Dyslexia Spacing
+                  Dyslexia Mode
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setShowRuler(!showRuler)}
                   className={cn(
-                    "px-2 py-1 rounded text-xs font-bold border transition-all",
+                    "px-2 py-1 rounded text-xs font-semibold border transition-all cursor-pointer",
                     showRuler
                       ? "bg-primary text-on-primary border-primary"
-                      : "border-border-strong text-text hover:bg-surface-sunken"
+                      : "border-border text-text hover:bg-surface-sunken"
                   )}
+                  title="Toggle reading focus ruler overlay"
                 >
-                  Ruler
+                  Reading Ruler
                 </button>
 
                 {showRuler && (
                   <select
                     value={rulerFollow}
                     onChange={(e) => setRulerFollow(e.target.value as "cursor" | "sentence")}
-                    className="text-xs rounded border border-border bg-surface px-1.5 py-0.5"
+                    className="text-xs rounded border border-border bg-surface px-1.5 py-1"
                   >
-                    <option value="cursor">Follow Cursor</option>
-                    <option value="sentence">Follow Sentence</option>
+                    <option value="sentence">Follow Active Sentence</option>
+                    <option value="cursor">Follow Mouse Cursor</option>
                   </select>
                 )}
               </div>
             </div>
 
-            <label htmlFor="source-text" className="font-semibold text-sm">
-              Text to read aloud
+            {/* Find and Replace Modal/Toolbar */}
+            {showFindReplace && (
+              <div className="mb-3 rounded-lg border border-border bg-surface-sunken p-3 flex flex-wrap items-center gap-2 animate-fade-in text-xs">
+                <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+                  <Search size={14} className="text-text-muted" />
+                  <input
+                    type="text"
+                    placeholder="Find text…"
+                    value={findQuery}
+                    onChange={(e) => setFindQuery(e.target.value)}
+                    className="flex-1 rounded border border-border bg-surface px-2 py-1 text-xs focus:outline-none focus:border-primary"
+                  />
+                  {findQuery && (
+                    <span className="text-[10px] text-text-muted font-mono">
+                      {findMatchesCount} {findMatchesCount === 1 ? "match" : "matches"}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+                  <Replace size={14} className="text-text-muted" />
+                  <input
+                    type="text"
+                    placeholder="Replace with…"
+                    value={replaceQuery}
+                    onChange={(e) => setReplaceQuery(e.target.value)}
+                    className="flex-1 rounded border border-border bg-surface px-2 py-1 text-xs focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1 text-[11px] cursor-pointer text-text-muted select-none">
+                    <input
+                      type="checkbox"
+                      checked={caseSensitive}
+                      onChange={(e) => setCaseSensitive(e.target.checked)}
+                      className="rounded border-border"
+                    />
+                    <span>Match Case</span>
+                  </label>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={findMatchesCount === 0}
+                    onClick={handleReplaceNext}
+                    className="text-xs py-1 h-7"
+                  >
+                    Replace
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={findMatchesCount === 0}
+                    onClick={handleReplaceAll}
+                    className="text-xs py-1 h-7"
+                  >
+                    Replace All
+                  </Button>
+                  <button
+                    onClick={() => setShowFindReplace(false)}
+                    className="p-1 text-text-muted hover:text-text cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* AI Panel Expansion if triggered */}
+            {showAiPanel && (
+              <div className="mb-4 rounded-xl border border-accent/30 bg-surface-sunken p-4 shadow-sm animate-fade-in">
+                <div className="flex items-center justify-between mb-3 border-b border-border pb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="size-4 text-accent" />
+                    <h3 className="font-bold text-sm">Improve Script with AI</h3>
+                  </div>
+                  <button
+                    onClick={() => setShowAiPanel(false)}
+                    className="text-text-muted hover:text-text cursor-pointer"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <AiPanel sourceText={rawText} onUseText={handleUseAiText} />
+              </div>
+            )}
+
+            {/* Main Textarea */}
+            <label htmlFor="source-text" className="font-semibold text-sm flex items-center justify-between">
+              <span>Text to read aloud</span>
+              {sourceLabel && (
+                <span className="text-xs font-normal text-primary">Source: {sourceLabel}</span>
+              )}
             </label>
             <textarea
               id="source-text"
@@ -580,22 +785,40 @@ export function Workspace() {
                 setSourceLabel(null);
                 setActiveQueueId(null);
               }}
-              rows={focusMode ? 16 : 8}
-              placeholder="Paste or type text here…"
+              rows={focusMode ? 18 : 8}
+              placeholder="Paste or type text here, or import a document below…"
               className={cn(
-                "w-full resize-y rounded-lg border border-border bg-surface p-3 text-base focus:border-primary focus:outline-none transition-all",
-                dyslexiaSpacing && "vk-dyslexia"
+                "w-full resize-y rounded-lg border border-border bg-surface p-3.5 text-base focus:border-primary focus:outline-none transition-all leading-relaxed",
+                dyslexiaSpacing && "vk-dyslexia font-sans tracking-wide leading-loose"
               )}
             />
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
-              <div className="flex gap-4">
-                <span className={overLimit ? "text-danger" : undefined}>
-                  {rawText.length.toLocaleString()} characters
-                  {overLimit ? " — very long text may be slow" : ""}
+
+            {/* Enhanced Counters & Metrics Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-text-muted pt-1 border-t border-border/60">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-5">
+                <span className={overLimit ? "text-danger font-semibold" : undefined}>
+                  {rawText.length.toLocaleString()} chars
                 </span>
+                <span>•</span>
                 <span>{wordCount.toLocaleString()} words</span>
-                <span>Est. duration: {formatDuration(estimatedDurationSec * 1000)}</span>
+                <span>•</span>
+                <span>{sentenceCount} sentences</span>
+                <span>•</span>
+                <span>{paragraphCount} paragraphs</span>
+                <span>•</span>
+                <span className="font-medium text-text">
+                  Est. time: {formatDuration(estimatedDurationSec * 1000)}
+                </span>
+                {snapshot.status !== "idle" && snapshot.sentenceIndex >= 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="text-primary font-medium">
+                      Remaining: {formatDuration(remainingDurationSec * 1000)}
+                    </span>
+                  </>
+                )}
               </div>
+
               {rawText.length > 0 ? (
                 <button
                   type="button"
@@ -605,10 +828,10 @@ export function Workspace() {
                       setRawText("");
                       setSourceLabel(null);
                       setActiveQueueId(null);
-                      void setDraftText(null);
+                      void setDraftText("");
                     }
                   }}
-                  className="hover:text-danger cursor-pointer"
+                  className="text-danger/80 hover:text-danger cursor-pointer font-medium"
                 >
                   Clear text
                 </button>
@@ -616,9 +839,16 @@ export function Workspace() {
             </div>
           </div>
 
-          {/* Voice Picker (always visible in Basic Mode) */}
+          {/* Voice Picker Section */}
           <div className="bg-surface border border-border p-4 rounded-xl shadow-sm">
-            <h2 className="mb-3 font-semibold text-sm">Select Reader Voice</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-sm sm:text-base text-text">
+                Select Voice & Language
+              </h2>
+              <span className="text-xs text-text-muted">
+                {voices.length} {voices.length === 1 ? "voice" : "voices"} available
+              </span>
+            </div>
             <VoicePicker
               voices={voices}
               loading={voicesLoading}
@@ -629,16 +859,20 @@ export function Workspace() {
             />
           </div>
 
-          {/* Playback Progress Highlights */}
+          {/* Active Sentence & Word Highlighting Transcript */}
           {hasText && (
             <section
-              aria-label="Transcript"
+              aria-label="Interactive Transcript"
               className={cn(
                 "rounded-xl border border-border bg-surface p-4 shadow-sm relative overflow-hidden",
                 dyslexiaSpacing && "vk-dyslexia"
               )}
             >
-              <div ref={transcriptContainerRef} className="relative">
+              <div className="mb-2 flex items-center justify-between text-xs text-text-muted border-b border-border pb-2">
+                <span className="font-semibold text-text">Live Speech Transcript</span>
+                <span>Click any sentence to listen from there</span>
+              </div>
+              <div ref={transcriptContainerRef} className="relative max-h-80 overflow-y-auto p-1">
                 <ReadingRuler
                   show={showRuler}
                   followMode={rulerFollow}
@@ -659,7 +893,7 @@ export function Workspace() {
             </section>
           )}
 
-          {/* Playback Controls (always visible in Basic Mode) */}
+          {/* Primary Playback Bar */}
           <PlaybackBar
             status={snapshot.status}
             sentenceIndex={snapshot.sentenceIndex}
@@ -690,16 +924,16 @@ export function Workspace() {
           />
         </div>
 
-        {/* Advanced customization toggle */}
+        {/* Advanced Options & Tools Drawer */}
         <div className="border-t border-border pt-4">
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-2 text-xs font-bold text-text-muted hover:text-text transition-colors cursor-pointer"
+            className="flex items-center gap-2 text-xs font-bold text-text-muted hover:text-primary transition-colors cursor-pointer py-1"
           >
-            <Settings size={14} className="text-text-muted" />
-            <span>Advanced reader options, files & tools</span>
-            {showAdvanced ? "▲" : "▼"}
+            <SlidersHorizontal size={14} />
+            <span>Document Uploads, Speed Presets, Queue & Text Normalization</span>
+            <span>{showAdvanced ? "▲" : "▼"}</span>
           </button>
 
           {showAdvanced && (
@@ -708,11 +942,13 @@ export function Workspace() {
                 {/* File Dropzone */}
                 <div className="bg-surface border border-border p-4 rounded-xl shadow-sm">
                   <h3 className="mb-2 font-semibold text-sm">Import Documents</h3>
-                  <p className="text-xs text-text-muted mb-3">Upload PDF, text, or subtitle files to speak.</p>
+                  <p className="text-xs text-text-muted mb-3">
+                    Drag and drop PDF, Word DOCX, Markdown, TXT, or subtitle files (.srt, .vtt).
+                  </p>
                   <ImportDropzone onImported={handleImported} />
                 </div>
 
-                {/* Speech Configuration Sliders */}
+                {/* Speech Sliders */}
                 <section
                   aria-label="Playback settings"
                   className="flex flex-col gap-4 rounded-xl border border-border bg-surface p-4 shadow-sm"
@@ -763,7 +999,7 @@ export function Workspace() {
               <div className="flex flex-col gap-6">
                 {/* Text Preparation Replacements */}
                 <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <h3 className="font-semibold text-sm mb-3">Text Normalization</h3>
+                  <h3 className="font-semibold text-sm mb-3">Offline Text Normalization</h3>
                   <TextPrepPanel
                     prep={prep}
                     onChange={handlePrepChange}
@@ -771,9 +1007,9 @@ export function Workspace() {
                   />
                 </div>
 
-                {/* Preset Voice Savings */}
+                {/* Preset Voice Profiles */}
                 <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <h3 className="font-semibold text-sm mb-3">Preset Profiles</h3>
+                  <h3 className="font-semibold text-sm mb-3">Voice Presets</h3>
                   <PresetBar
                     presets={presets}
                     availableVoiceURIs={availableVoiceURIs}
@@ -787,7 +1023,7 @@ export function Workspace() {
 
                 {/* Playlist Queue */}
                 <div className="rounded-xl border border-border bg-surface p-4 shadow-sm">
-                  <h3 className="font-semibold text-sm mb-3">Audio Queue</h3>
+                  <h3 className="font-semibold text-sm mb-3">Listening Queue</h3>
                   <QueuePanel
                     items={queue}
                     activeId={activeQueueId}
@@ -799,13 +1035,6 @@ export function Workspace() {
                     onClear={handleClearQueue}
                   />
                 </div>
-              </div>
-
-              {/* AI optimization panel */}
-              <div className="col-span-1 md:col-span-2 rounded-xl border border-border bg-surface p-4 shadow-sm">
-                <h3 className="font-semibold text-sm mb-2">AI Prep Toolkit</h3>
-                <p className="text-xs text-text-muted mb-4">Fix errors, summarize, or translate before reading.</p>
-                <AiPanel sourceText={rawText} onUseText={handleUseAiText} />
               </div>
             </div>
           )}

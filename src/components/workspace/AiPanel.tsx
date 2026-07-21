@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
-import { Sparkles, X, Copy, Check, ArrowRight } from "lucide-react";
+import {
+  Sparkles,
+  X,
+  Copy,
+  Check,
+  ArrowRight,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  SlidersHorizontal,
+  Edit3,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { track } from "@/lib/analytics";
-import { bucketChars } from "@/lib/format";
 import {
   capabilityGroups,
   getCapabilityMeta,
@@ -51,22 +61,19 @@ function isAbortError(error: unknown): boolean {
 export function AiPanel({ sourceText, onUseText }: AiPanelProps) {
   const [byok, setByok] = useState<string | null>(null);
   const [quota, setQuota] = useState<ClientQuota | null>(null);
-  const [openId, setOpenId] = useState<CapabilityId | null>(null);
+  const [openId, setOpenId] = useState<CapabilityId | null>("rewrite-for-natural-speech");
   const [params, setParams] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<Status>("idle");
   const [output, setOutput] = useState("");
   const [objectResult, setObjectResult] = useState<unknown>(null);
-  const [error, setError] = useState<{ code: string; message: string } | null>(
-    null
-  );
+  const [error, setError] = useState<{ code: string; message: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [sentNotice, setSentNotice] = useState(false);
-  const [resultMeta, setResultMeta] = useState<CapabilityMeta | null>(null);
+  const [editableOutput, setEditableOutput] = useState("");
+
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     void getByokKey().then(setByok);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only read
     setQuota(getClientQuota());
   }, []);
 
@@ -76,16 +83,10 @@ export function AiPanel({ sourceText, onUseText }: AiPanelProps) {
   const trimmedLen = sourceText.trim().length;
   const overLimit = sourceText.length > MAX_INPUT_CHARS;
   const missingRequired = openMeta
-    ? openMeta.params.some(
-        (spec) => spec.required && !(params[spec.name] ?? "").trim()
-      )
+    ? openMeta.params.some((spec) => spec.required && !(params[spec.name] ?? "").trim())
     : false;
   const canRun =
-    trimmedLen > 0 &&
-    !overLimit &&
-    !missingRequired &&
-    status !== "running" &&
-    openMeta !== null;
+    trimmedLen > 0 && !overLimit && !missingRequired && status !== "running" && openMeta !== null;
 
   const selectCapability = (id: CapabilityId) => {
     if (status === "running") return;
@@ -94,519 +95,257 @@ export function AiPanel({ sourceText, onUseText }: AiPanelProps) {
     setParams(defaultParams(meta));
     setStatus("idle");
     setOutput("");
+    setEditableOutput("");
     setObjectResult(null);
     setError(null);
-    setSentNotice(false);
   };
 
-  const run = async () => {
+  const handleRun = async () => {
     if (!openMeta || !canRun) return;
-
-    if (!byok && quota && quota.remaining <= 0) {
-      setError({
-        code: "quota_reached",
-        message:
-          "You've reached today's free AI limit. Add your own key in Settings to keep going.",
-      });
-      setStatus("error");
-      track("quota_reached", { capability: openMeta.id });
-      return;
-    }
-
+    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setResultMeta(openMeta);
+
     setStatus("running");
     setOutput("");
+    setEditableOutput("");
     setObjectResult(null);
     setError(null);
-    setSentNotice(false);
-    track("ai_started", {
-      capability: openMeta.id,
-      chars: bucketChars(sourceText.length),
-    });
 
     try {
       if (openMeta.mode === "text") {
-        await runTextCapability({
+        const result = await runTextCapability({
           id: openMeta.id,
           text: sourceText,
           params,
           byok,
           signal: controller.signal,
-          onChunk: (delta) => setOutput((prev) => prev + delta),
+          onChunk: (chunk) => {
+            setOutput((prev) => prev + chunk);
+            setEditableOutput((prev) => prev + chunk);
+          },
         });
+        setOutput(result.text);
+        setEditableOutput(result.text);
+        setStatus("done");
       } else {
-        const { result } = await runObjectCapability({
+        const result = await runObjectCapability({
           id: openMeta.id,
           text: sourceText,
           params,
           byok,
           signal: controller.signal,
         });
-        setObjectResult(result);
+        setObjectResult(result.result);
+        setStatus("done");
       }
-      setStatus("done");
-      track("ai_completed", { capability: openMeta.id });
-      if (!byok) setQuota(recordClientUsage());
-    } catch (caught) {
-      if (isAbortError(caught)) {
+
+      recordClientUsage();
+      setQuota(getClientQuota());
+      track("ai_completed");
+    } catch (err) {
+      if (isAbortError(err)) {
         setStatus("idle");
         return;
       }
-      const info =
-        caught instanceof AiClientError
-          ? { code: caught.code, message: caught.message }
-          : {
-              code: "network",
-              message:
-                "Could not reach the AI service. Check your connection and try again.",
-            };
-      setError(info);
-      setStatus("error");
-      track("ai_failed", { capability: openMeta.id, code: info.code });
-      if (info.code === "quota_reached") {
-        track("quota_reached", { capability: openMeta.id });
+      if (err instanceof AiClientError) {
+        setError({ code: err.code, message: err.message });
+      } else {
+        const msg = err instanceof Error ? err.message : String(err);
+        setError({ code: "unknown", message: msg || "Generation failed." });
       }
-    } finally {
-      if (abortRef.current === controller) abortRef.current = null;
+      setStatus("error");
     }
   };
 
-  const cancel = () => abortRef.current?.abort();
-
-  const handleUseText = (text: string) => {
-    onUseText(text);
-    setSentNotice(true);
+  const handleAccept = () => {
+    if (!editableOutput && !output) return;
+    onUseText(editableOutput || output);
+    setStatus("idle");
   };
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      track("result_copied", { capability: resultMeta?.id ?? "unknown" });
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard blocked — no-op; the text is still visible to select.
-    }
+  const handleReject = () => {
+    setStatus("idle");
+    setOutput("");
+    setEditableOutput("");
+    setObjectResult(null);
+  };
+
+  const handleCopy = () => {
+    const textToCopy = editableOutput || output;
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <section
-      aria-labelledby="ai-heading"
-      className="mt-6 rounded-xl border border-border bg-surface p-4 sm:p-5"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex size-7 items-center justify-center rounded-md bg-accent-soft text-accent">
-            <Sparkles className="size-4" aria-hidden="true" />
-          </span>
-          <h2 id="ai-heading" className="text-lg font-bold">
-            AI tools
-          </h2>
-        </div>
-        <QuotaBadge byok={byok} quota={quota} />
-      </div>
-      <p className="mt-1 text-sm text-text-muted">
-        Optional. These send your text to an AI model to rewrite, summarise, or
-        restructure it, then you can send the result back to the workspace to
-        listen. Everything else in MK VoiceKit runs without AI.
-      </p>
-
-      {/* Capability chooser */}
-      <div className="mt-4 flex flex-col gap-3">
-        {groups.map((group) => (
-          <div key={group.group}>
-            <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-text-muted">
-              {group.group}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {group.items.map((meta) => (
-                <button
-                  key={meta.id}
-                  type="button"
-                  aria-pressed={openId === meta.id}
-                  onClick={() => selectCapability(meta.id)}
-                  className={cn(
-                    "min-h-9 rounded-md border px-3 text-sm font-medium transition-colors",
-                    openId === meta.id
-                      ? "border-primary bg-primary-soft text-text"
-                      : "border-border-strong bg-surface text-text hover:bg-surface-sunken"
-                  )}
-                >
-                  {meta.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Selected capability */}
-      {openMeta ? (
-        <div className="mt-4 rounded-lg border border-border bg-surface-sunken p-4">
-          <p className="text-sm text-text-muted">{openMeta.description}</p>
-
-          {openMeta.params.length > 0 ? (
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              {openMeta.params.map((spec) => (
-                <label key={spec.name} className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium">{spec.label}</span>
-                  {spec.kind === "select" ? (
-                    <select
-                      value={params[spec.name] ?? spec.defaultValue}
-                      onChange={(event) =>
-                        setParams((prev) => ({
-                          ...prev,
-                          [spec.name]: event.target.value,
-                        }))
-                      }
-                      className="min-h-9 rounded-md border border-border-strong bg-surface px-2"
-                    >
-                      {spec.options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <>
-                      <input
-                        type="text"
-                        list={`ai-${spec.name}-list`}
-                        value={params[spec.name] ?? ""}
-                        maxLength={spec.maxLength}
-                        placeholder={spec.placeholder}
-                        onChange={(event) =>
-                          setParams((prev) => ({
-                            ...prev,
-                            [spec.name]: event.target.value,
-                          }))
-                        }
-                        className="min-h-9 rounded-md border border-border-strong bg-surface px-2"
-                      />
-                      {spec.suggestions ? (
-                        <datalist id={`ai-${spec.name}-list`}>
-                          {spec.suggestions.map((value) => (
-                            <option key={value} value={value} />
-                          ))}
-                        </datalist>
-                      ) : null}
-                    </>
-                  )}
-                </label>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {status === "running" ? (
-              <Button variant="secondary" onClick={cancel}>
-                <X className="size-4" aria-hidden="true" />
-                Cancel
-              </Button>
-            ) : (
-              <Button onClick={run} disabled={!canRun} loading={false}>
-                <Sparkles className="size-4" aria-hidden="true" />
-                Run
-              </Button>
-            )}
-            {trimmedLen === 0 ? (
-              <span className="text-sm text-text-muted">
-                Add some text above first.
-              </span>
-            ) : overLimit ? (
-              <span className="text-sm text-danger">
-                Text is over the {MAX_INPUT_CHARS.toLocaleString()}-character
-                limit for AI tools.
-              </span>
-            ) : status === "running" ? (
-              <span
-                role="status"
-                aria-live="polite"
-                className="text-sm text-text-muted"
+    <div className="space-y-4">
+      {/* Capability Selector Tabs */}
+      <div className="flex flex-wrap items-center gap-1.5 border-b border-border pb-3">
+        {groups.map((grp) => (
+          <div key={grp.group} className="flex items-center gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted px-2 py-1">
+              {grp.group}:
+            </span>
+            {grp.items.map((cap) => (
+              <button
+                key={cap.id}
+                onClick={() => selectCapability(cap.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                  openId === cap.id
+                    ? "bg-accent text-white shadow-sm font-bold"
+                    : "text-text-muted hover:text-text hover:bg-surface-sunken border border-transparent"
+                )}
               >
-                Working…
-              </span>
-            ) : null}
+                {cap.label}
+              </button>
+            ))}
           </div>
-
-          {/* Error / degraded states */}
-          {status === "error" && error ? (
-            <div
-              role="alert"
-              className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
-            >
-              <p>{error.message}</p>
-              {error.code === "ai_unavailable" ? (
-                <p className="mt-1 text-text-muted">
-                  You can add your own AI Gateway key in{" "}
-                  <Link href="/settings" className="underline">
-                    Settings
-                  </Link>
-                  , or use the deterministic Text prep tools (number and
-                  abbreviation expansion) — those run in your browser without
-                  AI.
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* Text output */}
-          {openMeta.mode === "text" && (status === "running" || output) ? (
-            <TextResult
-              text={output}
-              streaming={status === "running"}
-              copied={copied}
-              sent={sentNotice}
-              onUse={() => handleUseText(output)}
-              onCopy={() => copy(output)}
-            />
-          ) : null}
-
-          {/* Object output */}
-          {openMeta.mode === "object" &&
-          status === "done" &&
-          objectResult !== null &&
-          resultMeta ? (
-            <ObjectResult
-              meta={resultMeta}
-              result={objectResult}
-              copied={copied}
-              sent={sentNotice}
-              onUse={handleUseText}
-              onCopy={copy}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      <p className="mt-3 text-xs text-text-muted">
-        AI can make mistakes. Check important text before you rely on it. Your
-        key and text are sent only when you press Run, and are never stored on a
-        server.
-      </p>
-    </section>
-  );
-}
-
-function QuotaBadge({
-  byok,
-  quota,
-}: {
-  byok: string | null;
-  quota: ClientQuota | null;
-}) {
-  if (byok) {
-    return (
-      <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent">
-        Using your own key
-      </span>
-    );
-  }
-  if (!quota) return null;
-  return (
-    <span className="rounded-full bg-surface-sunken px-2.5 py-1 text-xs font-medium text-text-muted">
-      {quota.remaining} of {quota.limit} free AI actions left today
-    </span>
-  );
-}
-
-function ResultActions({
-  onUse,
-  onCopy,
-  copied,
-  sent,
-  useLabel,
-}: {
-  onUse: () => void;
-  onCopy: () => void;
-  copied: boolean;
-  sent: boolean;
-  useLabel: string;
-}) {
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      <Button size="sm" onClick={onUse}>
-        <ArrowRight className="size-4" aria-hidden="true" />
-        {useLabel}
-      </Button>
-      <Button size="sm" variant="secondary" onClick={onCopy}>
-        {copied ? (
-          <Check className="size-4" aria-hidden="true" />
-        ) : (
-          <Copy className="size-4" aria-hidden="true" />
-        )}
-        {copied ? "Copied" : "Copy"}
-      </Button>
-      {sent ? (
-        <span role="status" className="text-sm text-success">
-          Sent to the workspace.
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function TextResult({
-  text,
-  streaming,
-  copied,
-  sent,
-  onUse,
-  onCopy,
-}: {
-  text: string;
-  streaming: boolean;
-  copied: boolean;
-  sent: boolean;
-  onUse: () => void;
-  onCopy: () => void;
-}) {
-  return (
-    <div className="mt-3">
-      <div className="flex items-center gap-2">
-        <span className="rounded bg-accent-soft px-1.5 py-0.5 text-xs font-bold text-accent">
-          AI
-        </span>
-        <span className="text-xs text-text-muted">
-          {streaming ? "Generating…" : "Result"}
-        </span>
-      </div>
-      <div className="mt-1.5 max-h-72 overflow-y-auto whitespace-pre-wrap rounded-md border border-border bg-surface p-3 text-sm">
-        {text}
-        {streaming ? <span className="animate-pulse">▍</span> : null}
-      </div>
-      {!streaming && text ? (
-        <ResultActions
-          onUse={onUse}
-          onCopy={onCopy}
-          copied={copied}
-          sent={sent}
-          useLabel="Use this text"
-        />
-      ) : null}
-    </div>
-  );
-}
-
-function ObjectResult({
-  meta,
-  result,
-  copied,
-  sent,
-  onUse,
-  onCopy,
-}: {
-  meta: CapabilityMeta;
-  result: unknown;
-  copied: boolean;
-  sent: boolean;
-  onUse: (text: string) => void;
-  onCopy: (text: string) => void;
-}) {
-  if (meta.objectKind === "chapters") {
-    const chapters = (result as { chapters: Chapter[] }).chapters ?? [];
-    const asText = chapters
-      .map((c, i) => `${i + 1}. ${c.title} — ${c.summary}`)
-      .join("\n");
-    return (
-      <div className="mt-3">
-        <ResultLabel text="Chapters" />
-        <ol className="mt-1.5 flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm">
-          {chapters.map((chapter, index) => (
-            <li key={index}>
-              <span className="font-bold">
-                {index + 1}. {chapter.title}
-              </span>
-              <span className="block text-text-muted">{chapter.summary}</span>
-            </li>
-          ))}
-        </ol>
-        <ResultActions
-          onUse={() => onUse(asText)}
-          onCopy={() => onCopy(asText)}
-          copied={copied}
-          sent={sent}
-          useLabel="Use as text"
-        />
-      </div>
-    );
-  }
-
-  if (meta.objectKind === "pronunciations") {
-    const items = (result as { items: Pronunciation[] }).items ?? [];
-    if (items.length === 0) {
-      return (
-        <div className="mt-3">
-          <ResultLabel text="Pronunciation" />
-          <p className="mt-1.5 rounded-md border border-border bg-surface p-3 text-sm text-text-muted">
-            No likely-mispronounced words were found in this text.
-          </p>
-        </div>
-      );
-    }
-    const asText = items
-      .map((item) => `${item.term}: ${item.respelling} (${item.note})`)
-      .join("\n");
-    return (
-      <div className="mt-3">
-        <ResultLabel text="Pronunciation suggestions" />
-        <ul className="mt-1.5 flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm">
-          {items.map((item, index) => (
-            <li key={index} className="flex flex-wrap items-baseline gap-x-2">
-              <span className="font-bold">{item.term}</span>
-              <span className="font-mono text-primary">{item.respelling}</span>
-              <span className="block w-full text-text-muted">{item.note}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3">
-          <Button size="sm" variant="secondary" onClick={() => onCopy(asText)}>
-            {copied ? (
-              <Check className="size-4" aria-hidden="true" />
-            ) : (
-              <Copy className="size-4" aria-hidden="true" />
-            )}
-            {copied ? "Copied" : "Copy list"}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // dialogue
-  const turns = (result as { turns: DialogueTurn[] }).turns ?? [];
-  const asText = turns.map((turn) => `${turn.speaker}: ${turn.text}`).join("\n\n");
-  return (
-    <div className="mt-3">
-      <ResultLabel text="Multi-speaker script" />
-      <div className="mt-1.5 flex flex-col gap-2 rounded-md border border-border bg-surface p-3 text-sm">
-        {turns.map((turn, index) => (
-          <p key={index}>
-            <span className="font-bold text-primary">{turn.speaker}: </span>
-            {turn.text}
-          </p>
         ))}
       </div>
-      <ResultActions
-        onUse={() => onUse(asText)}
-        onCopy={() => onCopy(asText)}
-        copied={copied}
-        sent={sent}
-        useLabel="Use as text"
-      />
-    </div>
-  );
-}
 
-function ResultLabel({ text }: { text: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="rounded bg-accent-soft px-1.5 py-0.5 text-xs font-bold text-accent">
-        AI
-      </span>
-      <span className="text-xs text-text-muted">{text}</span>
+      {/* Selected Capability Description & Action Bar */}
+      {openMeta && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-surface border border-border p-3.5 rounded-xl">
+          <div>
+            <h4 className="font-bold text-sm text-text flex items-center gap-1.5">
+              <Sparkles size={14} className="text-accent" />
+              <span>{openMeta.label}</span>
+            </h4>
+            <p className="text-xs text-text-muted mt-0.5">{openMeta.description}</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {openMeta.params.map((spec) => (
+              <div key={spec.name} className="flex items-center gap-1.5">
+                <label className="text-xs font-semibold text-text-muted">{spec.label}:</label>
+                {spec.kind === "select" ? (
+                  <select
+                    value={params[spec.name] ?? spec.defaultValue}
+                    onChange={(e) => setParams({ ...params, [spec.name]: e.target.value })}
+                    className="rounded border border-border bg-surface-sunken px-2 py-1 text-xs font-medium"
+                  >
+                    {spec.options.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={params[spec.name] ?? spec.defaultValue}
+                    onChange={(e) => setParams({ ...params, [spec.name]: e.target.value })}
+                    placeholder={spec.placeholder}
+                    className="rounded border border-border bg-surface-sunken px-2 py-1 text-xs"
+                  />
+                )}
+              </div>
+            ))}
+
+            <Button
+              size="sm"
+              disabled={!canRun}
+              onClick={handleRun}
+              className="bg-accent text-white hover:opacity-90 font-bold"
+            >
+              {status === "running" ? "Transforming…" : "Run Transformation"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message if any */}
+      {error && (
+        <div className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-xs text-danger font-medium flex items-center justify-between">
+          <span>{error.message}</span>
+          <button onClick={() => setError(null)} className="p-1 hover:opacity-80">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* SIDE-BY-SIDE DIFF COMPARISON VIEW */}
+      {status === "done" && output && (
+        <div className="rounded-xl border border-accent/40 bg-surface p-4 shadow-md space-y-4 animate-fade-in">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-6 items-center justify-center rounded-full bg-accent text-white text-xs font-bold">
+                ✓
+              </span>
+              <h4 className="font-bold text-sm text-text">Review Transformation Diff</h4>
+            </div>
+
+            {/* Accept / Reject / Copy / Undo Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleAccept}
+                className="bg-emerald-600 text-white hover:bg-emerald-700 font-bold"
+              >
+                <CheckCircle2 size={14} className="mr-1" /> Accept & Apply
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleReject}
+                className="text-danger hover:bg-danger/10"
+              >
+                <XCircle size={14} className="mr-1" /> Reject
+              </Button>
+              <Button size="sm" variant="secondary" onClick={handleCopy}>
+                {copied ? <Check size={14} className="text-emerald-500 mr-1" /> : <Copy size={14} className="mr-1" />}
+                <span>{copied ? "Copied" : "Copy Result"}</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Side-by-Side Diff Container */}
+          <div className="grid gap-4 md:grid-cols-2 text-xs">
+            {/* Left: Original Version */}
+            <div className="space-y-1.5 p-3 rounded-lg bg-surface-sunken border border-border">
+              <span className="font-bold text-text-muted block uppercase text-[10px]">
+                Original Version
+              </span>
+              <div className="whitespace-pre-wrap text-text-muted leading-relaxed font-mono">
+                {sourceText}
+              </div>
+            </div>
+
+            {/* Right: Suggested Version with Inline Edit */}
+            <div className="space-y-1.5 p-3 rounded-lg bg-accent/5 border border-accent/30">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-accent block uppercase text-[10px]">
+                  Suggested AI Transformation
+                </span>
+                <span className="text-[10px] text-text-muted">Editable below</span>
+              </div>
+              <textarea
+                rows={8}
+                value={editableOutput}
+                onChange={(e) => setEditableOutput(e.target.value)}
+                className="w-full bg-surface border border-accent/40 rounded p-2.5 text-xs text-text font-mono focus:outline-none focus:ring-1 focus:ring-accent leading-relaxed"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Structured Object Output (Chapters, Pronunciations, Dialogue) */}
+      {status === "done" && objectResult !== null && (
+        <div className="rounded-xl border border-accent/40 bg-surface p-4 shadow-md space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <h4 className="font-bold text-sm text-accent">Structured Output Result</h4>
+            <Button size="sm" variant="secondary" onClick={handleReject}>
+              Close
+            </Button>
+          </div>
+          <pre className="whitespace-pre-wrap font-mono text-xs text-text bg-surface-sunken p-3 rounded-lg overflow-x-auto">
+            {JSON.stringify(objectResult, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }

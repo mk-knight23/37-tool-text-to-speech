@@ -446,9 +446,9 @@ export function SettingsView() {
 
       {/* Data */}
       <Section title="Your data">
-        {usage && usage.usedBytes !== null ? (
+        {usage ? (
           <p className="text-sm text-text-muted">
-            Using {formatBytes(usage.usedBytes)}
+            Using {formatBytes(usage.usedBytes || usage.storageEstimateMB * 1024 * 1024)}
             {usage.quotaBytes
               ? ` of about ${formatBytes(usage.quotaBytes)} available`
               : ""}

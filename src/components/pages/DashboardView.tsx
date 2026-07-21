@@ -46,9 +46,10 @@ export function DashboardView() {
   const stats = data?.stats ?? EMPTY_STATS;
   const hasActivity = stats.itemsSpoken > 0 || (data?.historyCount ?? 0) > 0;
 
-  const topVoices = Object.entries(stats.voiceUsage)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const voiceUsage = stats.voiceUsage || {};
+  const topVoices: [string, number][] = Object.entries(voiceUsage)
+    .sort((a, b) => (b[1] as number) - (a[1] as number))
+    .slice(0, 5) as [string, number][];
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

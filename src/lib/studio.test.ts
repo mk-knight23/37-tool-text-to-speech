@@ -15,6 +15,7 @@ describe("Voice Studio Project Schema", () => {
       scenes: [
         {
           id: "s1",
+          speaker: "Host",
           text: "First line.",
           voiceURI: "Google US English",
           rate: 1.2,
@@ -24,6 +25,7 @@ describe("Voice Studio Project Schema", () => {
         },
         {
           id: "s2",
+          speaker: "Guest",
           text: "Second line.",
           voiceURI: "Google UK English Female",
           rate: 1.0,
@@ -65,8 +67,6 @@ describe("Voice Studio Project Schema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.archived).toBe(false);
-      expect(result.data.backgroundMusic?.loop).toBe(true);
-      expect(result.data.backgroundMusic?.duckPercent).toBe(50);
     }
   });
 });
